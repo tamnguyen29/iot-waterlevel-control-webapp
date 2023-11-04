@@ -7,7 +7,7 @@ import com.nvt.iot.exception.WebsocketValidationException;
 import com.nvt.iot.model.*;
 import com.nvt.iot.repository.ConnectedDeviceRepository;
 import com.nvt.iot.repository.ConnectedUserRepository;
-import com.nvt.iot.service.MessageService;
+import com.nvt.iot.service.WaterTankConnectionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -18,10 +18,11 @@ import java.security.Principal;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class MessageServiceImpl implements MessageService {
+public class WaterTankConnectionServiceImpl implements WaterTankConnectionService {
     private final ConnectedUserRepository connectedUserRepository;
     private final ConnectedDeviceRepository connectedDeviceRepository;
     private final SimpMessagingTemplate simpMessagingTemplate;
@@ -92,11 +93,42 @@ public class MessageServiceImpl implements MessageService {
     }
 
     @Override
+    public void stopConnectToDevice(String deviceId, Principal user) {
+        if (deviceId == null || deviceId.trim().isEmpty()) {
+            throw new WebsocketValidationException(
+                String.format("Device id invalid when user(%s) try to stop connecting.", user.getName()),
+                user.getName());
+        }
+
+        //Check device is currently used by this user
+        if (!connectedDeviceRepository.existsByIdAndCurrentUsingUserId(deviceId, user.getName())) {
+            sendMessageToUserWhenTryingToDisConnectToDevice(user.getName(), DisconnectDeviceStatus.FAILURE);
+            throw new WebsocketResourcesNotFoundException(
+                String.format("Not found connected device[%s] or current using user[%s].", deviceId, user.getName()),
+                user.getName()
+            );
+        }
+
+        Optional<ConnectedDeviceDocument> deviceDocumentOptional = connectedDeviceRepository.findById(deviceId);
+        deviceDocumentOptional.ifPresent((deviceDocument) -> {
+            deviceDocument.setUsingStatus(UsingStatus.AVAILABLE);
+            deviceDocument.setCurrentUsingUser(null);
+            connectedDeviceRepository.save(deviceDocument);
+
+            sendDisconnectMessageToSpecificDevice(deviceId, user.getName());
+            sendMessageToUserWhenTryingToDisConnectToDevice(user.getName(), DisconnectDeviceStatus.SUCCESS);
+            sendListDeviceToAllUser();
+        });
+    }
+
+    @Override
     public void sendListUserToAllUser() {
         var message = Message.builder()
+            .sender("SERVER")
             .action(Action.SEND_LIST_CONNECTED_USER)
             .content(getConnectedUsersOrDevicesList(ClientType.USER))
             .time(new Date(System.currentTimeMillis()))
+            .receiver("ALL USERS")
             .build();
         simpMessagingTemplate.convertAndSend(CONNECTED_CLIENTS_ROOM, message);
     }
@@ -104,9 +136,11 @@ public class MessageServiceImpl implements MessageService {
     @Override
     public void sendListDeviceToAllUser() {
         var message = Message.builder()
+            .sender("SERVER")
             .action(Action.SEND_LIST_CONNECTED_DEVICE)
             .content(getConnectedUsersOrDevicesList(ClientType.DEVICE))
             .time(new Date(System.currentTimeMillis()))
+            .receiver("ALL USERS")
             .build();
         simpMessagingTemplate.convertAndSend(CONNECTED_CLIENTS_ROOM, message);
     }
@@ -119,9 +153,11 @@ public class MessageServiceImpl implements MessageService {
 
     private void sendListDeviceToSpecificUser(String userName) {
         var messageToThisUser = Message.builder()
+            .sender("SERVER")
             .action(Action.SEND_LIST_CONNECTED_DEVICE)
             .content(getConnectedUsersOrDevicesList(ClientType.DEVICE))
             .time(new Date(System.currentTimeMillis()))
+            .receiver(userName)
             .build();
         simpMessagingTemplate.convertAndSendToUser(userName,
             USER_PRIVATE_ROOM,
@@ -135,8 +171,24 @@ public class MessageServiceImpl implements MessageService {
     ) {
         var message = Message.builder()
             .action(Action.USER_CONNECT_TO_DEVICE)
+            .sender("SERVER")
             .content(connectDeviceStatus)
             .time(new Date(System.currentTimeMillis()))
+            .receiver(userName)
+            .build();
+        simpMessagingTemplate.convertAndSendToUser(userName, USER_PRIVATE_ROOM, message);
+    }
+
+    private void sendMessageToUserWhenTryingToDisConnectToDevice(
+        String userName,
+        DisconnectDeviceStatus disconnectDeviceStatus
+    ) {
+        var message = Message.builder()
+            .sender("SERVER")
+            .action(Action.USER_DISCONNECT_TO_DEVICE)
+            .content(disconnectDeviceStatus)
+            .time(new Date(System.currentTimeMillis()))
+            .receiver(userName)
             .build();
         simpMessagingTemplate.convertAndSendToUser(userName, USER_PRIVATE_ROOM, message);
     }
@@ -144,10 +196,22 @@ public class MessageServiceImpl implements MessageService {
     @Override
     public void sendUserIdToSpecificDevice(String userId, String deviceName) {
         var message = Message.builder()
+            .sender(String.format("USER[%s]", userId))
             .action(Action.USER_CONNECT_TO_DEVICE)
             .content(userId)
             .time(new Date(System.currentTimeMillis()))
+            .receiver(deviceName)
             .build();
         simpMessagingTemplate.convertAndSendToUser(deviceName, DEVICE_PRIVATE_ROOM, message);
+    }
+
+    private void sendDisconnectMessageToSpecificDevice(String deviceId, String userName) {
+        var message = Message.builder()
+            .sender(String.format("USER[%s]", userName))
+            .action(Action.USER_DISCONNECT_TO_DEVICE)
+            .content(userName)
+            .time(new Date(System.currentTimeMillis()))
+            .build();
+        simpMessagingTemplate.convertAndSendToUser(deviceId, DEVICE_PRIVATE_ROOM, message);
     }
 }

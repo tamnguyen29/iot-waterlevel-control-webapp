@@ -12,9 +12,9 @@ import java.util.Date;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Message {
-    private Sender sender;
+    private String sender;
     private Action action;
     private Object content;
-    private Receiver receiver;
+    private String receiver;
     private Date time;
 }

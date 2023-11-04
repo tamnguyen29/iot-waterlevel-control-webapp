@@ -6,7 +6,7 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import java.security.Principal;
 import java.util.List;
 
-public interface MessageService extends WebsocketHandleEventService {
+public interface WaterTankConnectionService extends WebsocketHandleEventService {
     void sendListMemberToEveryUserClient(SimpMessageHeaderAccessor headerAccessor);
 
     void connectToDevice(String deviceId, Principal user);
@@ -23,4 +23,6 @@ public interface MessageService extends WebsocketHandleEventService {
 
     default void sendUserIdToSpecificDevice(String userId, String deviceName) {
     }
+
+    void stopConnectToDevice(String deviceId, Principal user);
 }

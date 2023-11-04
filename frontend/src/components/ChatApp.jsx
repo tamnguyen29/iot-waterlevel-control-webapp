@@ -15,6 +15,7 @@ const App = () => {
   const [deviceList, setDeviceList] = useState([])
   const [currentUserConnectDeviceId, setCurrentUserConnectDeviceId] =
     useState("")
+  const [loading, setLoading] = useState(false)
 
   const connect = () => {
     sock = new SockJS(
@@ -78,6 +79,10 @@ const App = () => {
       case "SEND_LIST_CONNECTED_DEVICE":
         setDeviceList(receivedMessage.content)
         break
+      case "USER_CONNECT_TO_DEVICE":
+        //Address when connect here
+        setLoading(false)
+        break
       default:
         break
     }
@@ -91,7 +96,7 @@ const App = () => {
         setCurrentUserConnectDeviceId(receivedMessage.content)
         break
       case "USER_DISCONNECT_TO_DEVICE":
-        setCurrentUserConnectDeviceId("")
+        setCurrentUserConnectDeviceId("User disconnect")
         break
     }
   }
@@ -137,13 +142,12 @@ const App = () => {
   }
 
   const handleConnectToDevice = (deviceId) => {
-    console.log("Handle connect click")
-    const message = "Oke"
-    stompClient.send(
-      `/app/connect-device/${deviceId}`,
-      {},
-      JSON.stringify(message)
-    )
+    setLoading(true)
+    stompClient.send(`/app/connect-device/${deviceId}`, {}, null)
+  }
+
+  const handleDisConnectToDevice = (deviceId) => {
+    stompClient.send(`/app/stop-connect-device/${deviceId}`, {}, null)
   }
 
   const DeviceListElement = () => {
@@ -151,16 +155,27 @@ const App = () => {
       <li key={device.id}>
         {index + 1}, name: {device.name}, connected at: {device.connectedAt}
         {device.usingStatus === "AVAILABLE" ? (
-          <button
-            type="button"
-            onClick={() => handleConnectToDevice(device.id)}
-          >
-            Using device
-          </button>
+          <span>
+            {!loading ? (
+              <button
+                type="button"
+                onClick={() => handleConnectToDevice(device.id)}
+              >
+                Using device
+              </button>
+            ) : (
+              <span> Loading</span>
+            )}
+          </span>
         ) : (
           <span>
             {connectClientValue.clientId === device.currentUsingUser.id ? (
-              <button type="button">Stop using</button>
+              <button
+                type="button"
+                onClick={() => handleDisConnectToDevice(device.id)}
+              >
+                Stop using
+              </button>
             ) : (
               <span>
                 <b> {device.currentUsingUser.name} is using</b>
@@ -173,8 +188,10 @@ const App = () => {
     return <ul>{listDeviceItems}</ul>
   }
 
+  
   return (
     <div>
+
       <div className="connect-disconnect-container">
         <input
           id="clientId"
