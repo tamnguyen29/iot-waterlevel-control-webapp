@@ -34,4 +34,9 @@ public class WaterTankConnectionController {
         log.info("{/stop-connect-device/{deviceId}}: DeviceId(" + deviceId + "), User(" + user.getName() + ")");
         waterTankConnectionService.stopConnectToDevice(deviceId, user);
     }
+
+    @MessageMapping("/ping")
+    public String handlePing() {
+        return "PONG";
+    }
 }

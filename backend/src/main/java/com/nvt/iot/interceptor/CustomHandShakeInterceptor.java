@@ -28,14 +28,15 @@ public class CustomHandShakeInterceptor implements HandshakeInterceptor {
 
     @Override
     public boolean beforeHandshake(
-         final ServerHttpRequest request,
-         final ServerHttpResponse response,
-         final WebSocketHandler wsHandler,
-         final Map<String, Object> attributes
+        final ServerHttpRequest request,
+        final ServerHttpResponse response,
+        final WebSocketHandler wsHandler,
+        final Map<String, Object> attributes
     ) throws Exception {
         final URI uri = request.getURI();
         final String query = uri.getQuery();
-
+        
+        log.info(uri.toString());
         if (query != null && uri.getPath().contains("/websocket")) {
             final UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUri(uri);
 

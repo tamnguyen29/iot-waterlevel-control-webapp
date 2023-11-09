@@ -11,5 +11,5 @@ public interface WebsocketHandleEventService {
 
     List<?> getConnectedUsersOrDevicesList(ClientType type);
 
-    void sendUserIdToSpecificDevice(String userId, String deviceName);
+    void sendUserInfoToSpecificDevice(String user, String deviceName);
 }

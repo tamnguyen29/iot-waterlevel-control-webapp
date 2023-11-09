@@ -17,12 +17,17 @@ const App = () => {
     useState("")
   const [loading, setLoading] = useState(false)
 
+  const [waterLevelData, setWaterLevelData] = useState({
+    value: "",
+    time: "",
+  })
+  const [deviceControllerId, setDeviceControllerId] = useState("")
+
   const connect = () => {
     sock = new SockJS(
-      `http://localhost:8080/ws?clientId=${connectClientValue.clientId}&clientType=${connectClientValue.clientType}`
+      `http://192.168.1.6:8080/ws?clientId=${connectClientValue.clientId}&clientType=${connectClientValue.clientType}`
     )
     stompClient = over(sock)
-
     stompClient.connect({}, onConnected, onError)
   }
 
@@ -83,6 +88,14 @@ const App = () => {
         //Address when connect here
         setLoading(false)
         break
+      case "USER_DISCONNECT_TO_DEVICE":
+        break
+      case "SEND_WATER_LEVEL_DATA":
+        setWaterLevelData({
+          value: receivedMessage.content,
+          time: receivedMessage.time,
+        })
+        break
       default:
         break
     }
@@ -97,6 +110,13 @@ const App = () => {
         break
       case "USER_DISCONNECT_TO_DEVICE":
         setCurrentUserConnectDeviceId("User disconnect")
+        break
+      case "START_MEASUREMENT":
+        console.log(receivedMessage)
+        setDeviceControllerId(receivedMessage.content)
+        break
+      case "STOP_MEASUREMENT":
+        setDeviceControllerId("STOP")
         break
     }
   }
@@ -150,6 +170,19 @@ const App = () => {
     stompClient.send(`/app/stop-connect-device/${deviceId}`, {}, null)
   }
 
+  const startMeasurement = (deviceId) => {
+    const controllerId = "653369ff0d9f084480a71faf"
+    stompClient.send(
+      `/app/operation/start-measurement/${deviceId}`,
+      {},
+      controllerId
+    )
+  }
+
+  const stopMeasurement = (deviceId) => {
+    stompClient.send(`/app/operation/stop-measurement/${deviceId}`, {}, null)
+  }
+
   const DeviceListElement = () => {
     const listDeviceItems = deviceList.map((device, index) => (
       <li key={device.id}>
@@ -170,12 +203,33 @@ const App = () => {
         ) : (
           <span>
             {connectClientValue.clientId === device.currentUsingUser.id ? (
-              <button
-                type="button"
-                onClick={() => handleDisConnectToDevice(device.id)}
-              >
-                Stop using
-              </button>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => handleDisConnectToDevice(device.id)}
+                >
+                  Stop using
+                </button>
+                <div>
+                  <p>Controller: 653369ff0d9f084480a71faf</p>
+                  <button
+                    type="button"
+                    onClick={() => startMeasurement(device.id)}
+                  >
+                    Start
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => stopMeasurement(device.id)}
+                  >
+                    Stop
+                  </button>
+                </div>
+                <p>
+                  Current water level: {waterLevelData.value}, time:{" "}
+                  {waterLevelData.time}
+                </p>
+              </div>
             ) : (
               <span>
                 <b> {device.currentUsingUser.name} is using</b>
@@ -183,15 +237,26 @@ const App = () => {
             )}
           </span>
         )}
+        <div></div>
       </li>
     ))
     return <ul>{listDeviceItems}</ul>
   }
 
-  
+  // const handleClick = () => {
+  //   stompClient.send(
+  //     "/app/send-water-level-data",
+  //     {},
+  //     JSON.stringify({
+  //       value: "12",
+  //       controlUnitId: "1232131231",
+  //       userId: "12323",
+  //     })
+  //   )
+  // }
+
   return (
     <div>
-
       <div className="connect-disconnect-container">
         <input
           id="clientId"
@@ -243,6 +308,7 @@ const App = () => {
               <p>
                 Current user connect to this ESP32: {currentUserConnectDeviceId}
               </p>
+              <p>Controller: {deviceControllerId}</p>
             </div>
           )}
 

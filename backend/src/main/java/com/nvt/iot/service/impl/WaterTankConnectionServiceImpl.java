@@ -80,8 +80,8 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
             connectedDevice.setUsingStatus(UsingStatus.UNAVAILABLE);
             connectedDevice.setCurrentUsingUser(currentUsingUser);
             connectedDeviceRepository.save(connectedDevice);
-            //Send parameter to device: userId
-            sendUserIdToSpecificDevice(user.getName(), deviceId);
+
+            sendUserInfoToSpecificDevice(user.getName(), deviceId);
             sendListDeviceToAllUser();
             //Send user connected successfully
             sendMessageToUserWhenTryingToConnectToDevice(user.getName(), ConnectDeviceStatus.SUCCESS);
@@ -194,9 +194,9 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
     }
 
     @Override
-    public void sendUserIdToSpecificDevice(String userId, String deviceName) {
+    public void sendUserInfoToSpecificDevice(String userId, String deviceName) {
         var message = Message.builder()
-            .sender(String.format("USER[%s]", userId))
+            .sender(userId)
             .action(Action.USER_CONNECT_TO_DEVICE)
             .content(userId)
             .time(new Date(System.currentTimeMillis()))

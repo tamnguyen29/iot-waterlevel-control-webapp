@@ -13,6 +13,7 @@ import com.nvt.iot.repository.DeviceRepository;
 import com.nvt.iot.repository.UserRepository;
 import com.nvt.iot.service.WebsocketHandleEventService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -20,6 +21,7 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
+import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
 import java.util.Date;
 import java.util.List;
@@ -28,6 +30,7 @@ import java.util.Objects;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class WebsocketEventHandler implements WebsocketHandleEventService {
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ConnectedUserRepository connectedUserRepository;
@@ -45,6 +48,7 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
 
     @EventListener
     public void handleSessionConnectEvent(SessionConnectEvent connectEvent) {
+        log.info("Connect: " + connectEvent.toString());
         final StompHeaderAccessor accessor = StompHeaderAccessor.wrap(connectEvent.getMessage());
         Map<String, Object> attributes = accessor.getSessionAttributes();
 
@@ -67,7 +71,8 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
                 .onlineAt(new Date(System.currentTimeMillis()))
                 .build();
             connectedUserRepository.save(connectedUser);
-        } else if (clientType.equals(ClientType.DEVICE) && !connectedDeviceRepository.existsById(id)) {
+        } else if (clientType.equals(ClientType.DEVICE)) {
+            System.out.println("Runnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn");
             var device = deviceRepository.findById(id)
                 .orElseThrow(() -> new WebsocketResourcesNotFoundException("Not found device id: " + id, id));
             var connectedDevice = ConnectedDeviceDocument.builder()
@@ -83,6 +88,7 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
 
     @EventListener
     public void handleSessionDisConnectEvent(SessionDisconnectEvent disconnectEvent) {
+        log.info("Disconnect: " + disconnectEvent.toString());
         final StompHeaderAccessor accessor = StompHeaderAccessor.wrap(disconnectEvent.getMessage());
         String sessionId = accessor.getSessionId();
         ClientType client = checkIsUserOrDeviceBySessionId(sessionId);
@@ -93,12 +99,17 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
             device.setCurrentUsingUser(null);
             connectedDeviceRepository.save(device);
 
-            sendUserIdToSpecificDevice(null, device.getId());
+            sendUserInfoToSpecificDevice(null, device.getId());
             sendListDeviceToAllUser();
             sendListUserToAllUser();
         } else if (client.equals(ClientType.DEVICE)) {
             sendListDeviceToAllUser();
         }
+    }
+
+    @EventListener
+    public void handleSubscribeChannel(SessionSubscribeEvent sessionSubscribeEvent) {
+        log.info(sessionSubscribeEvent.toString());
     }
 
     private ClientType checkIsUserOrDeviceBySessionId(String sessionId) {
@@ -143,7 +154,7 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
     }
 
     @Override
-    public void sendUserIdToSpecificDevice(String userId, String deviceName) {
+    public void sendUserInfoToSpecificDevice(String userId, String deviceName) {
         var message = Message.builder()
             .action(Action.USER_DISCONNECT_TO_DEVICE)
             .content(userId)

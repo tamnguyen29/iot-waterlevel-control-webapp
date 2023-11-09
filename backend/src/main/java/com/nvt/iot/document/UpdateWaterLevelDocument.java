@@ -17,7 +17,7 @@ import java.util.Date;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class WaterLevelDocument {
+public class UpdateWaterLevelDocument {
     @Id
     private String id;
     @Field(name = "value")

@@ -21,7 +21,7 @@ public interface WaterTankConnectionService extends WebsocketHandleEventService 
         return null;
     }
 
-    default void sendUserIdToSpecificDevice(String userId, String deviceName) {
+    default void sendUserInfoToSpecificDevice(String user, String deviceName) {
     }
 
     void stopConnectToDevice(String deviceId, Principal user);

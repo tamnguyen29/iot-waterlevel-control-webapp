@@ -13,7 +13,7 @@ import java.util.Map;
 
 @Component
 @Slf4j
-public class CustomHandShakeHandler extends DefaultHandshakeHandler{
+public class CustomHandShakeHandler extends DefaultHandshakeHandler {
     @Value("${websocket.request.handshake.parameter.client-id}")
     private String CLIENT_ID;
 
