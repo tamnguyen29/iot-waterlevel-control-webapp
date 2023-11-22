@@ -1,11 +1,11 @@
 package com.nvt.iot.service.impl;
 
-import com.nvt.iot.document.ConnectedDeviceDocument;
-import com.nvt.iot.document.ControlUnitDocument;
 import com.nvt.iot.document.UpdateWaterLevelDocument;
-import com.nvt.iot.exception.NotFoundCustomException;
 import com.nvt.iot.exception.WebsocketResourcesNotFoundException;
-import com.nvt.iot.model.*;
+import com.nvt.iot.model.Action;
+import com.nvt.iot.model.MeasurementStatus;
+import com.nvt.iot.model.Message;
+import com.nvt.iot.model.WaterLevelData;
 import com.nvt.iot.repository.ConnectedDeviceRepository;
 import com.nvt.iot.repository.ControlUnitRepository;
 import com.nvt.iot.repository.UpdateWaterLevelRepository;
@@ -17,7 +17,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -101,9 +100,9 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
 
     @Override
     public double getWaterLevelDataFromDevice(WaterLevelData data) {
-        if (!connectedDeviceRepository.existsByIdAndCurrentUsingUserId(data.getDeviceId(), data.getUserId())) {
-            throw new NotFoundCustomException("Not found connected device id " + data.getDeviceId());
-        }
+//        if (!connectedDeviceRepository.existsByIdAndCurrentUsingUserId(data.getDeviceId(), data.getUserId())) {
+//            throw new NotFoundCustomException("Not found connected device id " + data.getDeviceId());
+//        }
         var message = Message.builder()
             .sender(data.getDeviceId())
             .action(Action.SEND_WATER_LEVEL_DATA)
@@ -116,21 +115,14 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
             USER_PRIVATE_ROOM,
             message
         );
-        ConnectedDeviceDocument device = connectedDeviceRepository.findByCurrentUsingUserId(data.getUserId());
-        Optional<ControlUnitDocument> controlUnitOptional = controlUnitRepository.findById(data.getControlUnitId());
 
         var updateWaterLevelDoc = UpdateWaterLevelDocument.builder()
             .id(UPDATE_WATER_LEVEL_DOC_ID)
             .value(data.getValue())
-            .creator(new Creator(
-                data.getUserId(),
-                device.getCurrentUsingUser().getName()
-            ))
+            .userId(data.getUserId())
             .createdAt(new Date(System.currentTimeMillis()))
-            .controlUnit(new ControlUnit(
-                data.getControlUnitId(),
-                controlUnitOptional.get().getName()
-            ))
+            .controlUnitId(data.getControlUnitId())
+            .deviceId(data.getDeviceId())
             .build();
         updateWaterLevelRepository.save(updateWaterLevelDoc);
 
