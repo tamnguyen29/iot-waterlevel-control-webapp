@@ -1,8 +1,10 @@
 package com.nvt.iot.controller;
 
+import com.nvt.iot.model.WaterLevelData;
 import com.nvt.iot.payload.request.DeviceRequest;
 import com.nvt.iot.payload.response.BaseResponse;
 import com.nvt.iot.service.DeviceService;
+import com.nvt.iot.service.WaterTankOperationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,8 @@ import javax.validation.Valid;
 @RequiredArgsConstructor
 public class DeviceController {
     private final DeviceService deviceService;
+    private final WaterTankOperationService waterTankOperationService;
+
     @PostMapping("/add")
     public ResponseEntity<?> addDevice(
         @RequestBody @Valid DeviceRequest deviceRequest,
@@ -66,4 +70,10 @@ public class DeviceController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @PostMapping("/send-data")
+    public ResponseEntity<?> sendData(@RequestBody WaterLevelData data) {
+        System.out.println("/send-data: " + data);
+        double sigNalControl = waterTankOperationService.getWaterLevelDataFromDevice(data);
+        return new ResponseEntity<>(sigNalControl, HttpStatus.OK);
+    }
 }

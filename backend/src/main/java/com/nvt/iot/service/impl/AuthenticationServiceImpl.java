@@ -1,12 +1,12 @@
 package com.nvt.iot.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nvt.iot.mapper.UserDTOMapper;
-import com.nvt.iot.model.Role;
 import com.nvt.iot.document.UserDocument;
 import com.nvt.iot.exception.AuthenticationCustomException;
 import com.nvt.iot.exception.EmailAlreadyExistsException;
 import com.nvt.iot.exception.ValidationCustomException;
+import com.nvt.iot.mapper.UserDTOMapper;
+import com.nvt.iot.model.Role;
 import com.nvt.iot.payload.request.AuthenticationRequest;
 import com.nvt.iot.payload.request.RegisterRequest;
 import com.nvt.iot.payload.response.AuthenticationResponse;
@@ -39,7 +39,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final UserDTOMapper userDTOMapper;
 
     @Override
-    public RegisterResponse register(RegisterRequest registerRequest ,BindingResult bindingResult) {
+    public RegisterResponse register(RegisterRequest registerRequest, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
             throw new ValidationCustomException(bindingResult);
         }
@@ -97,7 +97,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Override
     public void refreshToken(HttpServletRequest request, HttpServletResponse response) throws IOException {
         final String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-
+        System.out.println(authHeader);
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return;
         }

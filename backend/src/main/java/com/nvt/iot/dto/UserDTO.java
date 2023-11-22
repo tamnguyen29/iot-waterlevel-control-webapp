@@ -14,6 +14,7 @@ import java.util.Date;
 @NoArgsConstructor
 public class UserDTO {
     private String id;
+    private String fullName;
     private String email;
     private Date createdAt;
     private Date updatedAt;

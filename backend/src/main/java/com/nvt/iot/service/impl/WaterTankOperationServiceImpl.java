@@ -3,6 +3,7 @@ package com.nvt.iot.service.impl;
 import com.nvt.iot.document.ConnectedDeviceDocument;
 import com.nvt.iot.document.ControlUnitDocument;
 import com.nvt.iot.document.UpdateWaterLevelDocument;
+import com.nvt.iot.exception.NotFoundCustomException;
 import com.nvt.iot.exception.WebsocketResourcesNotFoundException;
 import com.nvt.iot.model.*;
 import com.nvt.iot.repository.ConnectedDeviceRepository;
@@ -36,11 +37,12 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
 
     @Override
     public void startMeasurementWithControlParameter(String controllerId, String deviceId, String senderId) {
-        var controlUnitDocument = controlUnitRepository.findById(controllerId)
-            .orElseThrow(() -> new WebsocketResourcesNotFoundException(
+        if (!controlUnitRepository.existsById(controllerId)) {
+            throw new WebsocketResourcesNotFoundException(
                 "Not found controller id starting measurement",
                 senderId
-            ));
+            );
+        }
 
         if (!connectedDeviceRepository.existsByIdAndCurrentUsingUserId(deviceId, senderId)) {
             throw new WebsocketResourcesNotFoundException(
@@ -98,15 +100,12 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
     }
 
     @Override
-    public void getWaterLevelDataFromDevice(String fromDevice, WaterLevelData data) {
-        if (!connectedDeviceRepository.existsByIdAndCurrentUsingUserId(fromDevice, data.getUserId())) {
-            throw new WebsocketResourcesNotFoundException(
-                "Not found connected device id or user id.",
-                fromDevice
-            );
+    public double getWaterLevelDataFromDevice(WaterLevelData data) {
+        if (!connectedDeviceRepository.existsByIdAndCurrentUsingUserId(data.getDeviceId(), data.getUserId())) {
+            throw new NotFoundCustomException("Not found connected device id " + data.getDeviceId());
         }
         var message = Message.builder()
-            .sender(fromDevice)
+            .sender(data.getDeviceId())
             .action(Action.SEND_WATER_LEVEL_DATA)
             .content(data.getValue())
             .time(new Date(System.currentTimeMillis()))
@@ -136,18 +135,7 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
         updateWaterLevelRepository.save(updateWaterLevelDoc);
 
         var sigNalControl = xControlRepository.findFirstById(SIGNAL_CONTROL_DOC_ID);
-        sendSignalControlToDevice(fromDevice, sigNalControl.getValue());
-    }
-
-    @Override
-    public void sendSignalControlToDevice(String toDevice, double signalControl) {
-        System.out.println(signalControl);
-        var message = Message.builder()
-            .action(Action.SEND_SIGNAL_CONTROL)
-            .content(signalControl)
-            .time(new Date(System.currentTimeMillis()))
-            .build();
-        simpMessagingTemplate.convertAndSendToUser(toDevice, DEVICE_PRIVATE_ROOM, message);
+        return sigNalControl.getValue();
     }
 }
 

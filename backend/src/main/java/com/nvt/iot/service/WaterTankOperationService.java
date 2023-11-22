@@ -7,7 +7,5 @@ public interface WaterTankOperationService {
 
     void stopMeasurement(String deviceId, String senderId);
 
-    void getWaterLevelDataFromDevice(String fromDevice, WaterLevelData data);
-
-    void sendSignalControlToDevice(String toDevice, double signalControl);
+    double getWaterLevelDataFromDevice(WaterLevelData data);
 }

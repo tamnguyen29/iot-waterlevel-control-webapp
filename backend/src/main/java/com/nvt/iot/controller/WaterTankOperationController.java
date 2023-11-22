@@ -1,6 +1,5 @@
 package com.nvt.iot.controller;
 
-import com.nvt.iot.model.WaterLevelData;
 import com.nvt.iot.service.WaterTankOperationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,9 +37,4 @@ public class WaterTankOperationController {
         waterTankOperationService.stopMeasurement(deviceId, user.getName());
     }
 
-    @MessageMapping("/send-water-level-data")
-    public void getWaterLevelData(Principal device, @Payload WaterLevelData data) {
-        log.info("{/send-water-level-data} - data: " + data + " - from device: " + device.getName());
-        waterTankOperationService.getWaterLevelDataFromDevice(device.getName(), data);
-    }
 }

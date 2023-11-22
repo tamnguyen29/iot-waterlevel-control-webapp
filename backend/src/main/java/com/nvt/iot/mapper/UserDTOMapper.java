@@ -12,6 +12,7 @@ public class UserDTOMapper implements Function<UserDocument, UserDTO> {
     public UserDTO apply(UserDocument userDocument) {
         return new UserDTO(
             userDocument.getId(),
+            userDocument.getFullName(),
             userDocument.getEmail(),
             userDocument.getCreateAt(),
             userDocument.getUpdatedAt(),
