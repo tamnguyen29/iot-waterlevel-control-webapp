@@ -21,10 +21,10 @@ import java.util.List;
 public class WaterLevelStoreDocument {
     @Id
     private String id;
-    @Field("creator")
+    @Field(name = "creator")
     private Creator creator;
-    @Field("controller")
+    @Field(name = "controller")
     private ControlUnit controlUnit;
-    @Field("water_level")
+    @Field(name = "water_level")
     private List<WaterLevelStore> waterLevels;
 }

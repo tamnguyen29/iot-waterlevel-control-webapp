@@ -65,14 +65,13 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
             var user = userRepository.findById(id)
                 .orElseThrow(() -> new WebsocketResourcesNotFoundException("Not found user id: " + id, id));
             var connectedUser = ConnectedUserDocument.builder()
-                .id(user.getId())
+                .id(id)
                 .name(user.getFullName())
                 .sessionId(accessor.getSessionId())
                 .onlineAt(new Date(System.currentTimeMillis()))
                 .build();
             connectedUserRepository.save(connectedUser);
         } else if (clientType.equals(ClientType.DEVICE)) {
-            System.out.println("Runnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn");
             var device = deviceRepository.findById(id)
                 .orElseThrow(() -> new WebsocketResourcesNotFoundException("Not found device id: " + id, id));
             var connectedDevice = ConnectedDeviceDocument.builder()

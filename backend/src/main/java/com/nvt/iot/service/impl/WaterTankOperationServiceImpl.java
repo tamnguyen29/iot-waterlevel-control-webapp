@@ -1,15 +1,15 @@
 package com.nvt.iot.service.impl;
 
+import com.nvt.iot.document.DeviceControllerUserDocument;
 import com.nvt.iot.document.UpdateWaterLevelDocument;
+import com.nvt.iot.document.XControlDocument;
+import com.nvt.iot.exception.NotFoundCustomException;
 import com.nvt.iot.exception.WebsocketResourcesNotFoundException;
 import com.nvt.iot.model.Action;
 import com.nvt.iot.model.MeasurementStatus;
 import com.nvt.iot.model.Message;
 import com.nvt.iot.model.WaterLevelData;
-import com.nvt.iot.repository.ConnectedDeviceRepository;
-import com.nvt.iot.repository.ControlUnitRepository;
-import com.nvt.iot.repository.UpdateWaterLevelRepository;
-import com.nvt.iot.repository.XControlRepository;
+import com.nvt.iot.repository.*;
 import com.nvt.iot.service.WaterTankOperationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +17,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,8 +28,7 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
     private final ConnectedDeviceRepository connectedDeviceRepository;
     private final UpdateWaterLevelRepository updateWaterLevelRepository;
     private final XControlRepository xControlRepository;
-    private static final String UPDATE_WATER_LEVEL_DOC_ID = "6516899f5d385dddfafd7efa";
-    private static final String SIGNAL_CONTROL_DOC_ID = "6549e02224ec870284d39c8e";
+    private final DeviceControllerUserRepository deviceControllerUserRepository;
     @Value("${websocket.room.private-device}")
     private String DEVICE_PRIVATE_ROOM;
     @Value("${websocket.room.private-user}")
@@ -56,6 +57,29 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
             Action.START_MEASUREMENT
         );
         sendMeasurementMessageBackToUser(senderId, MeasurementStatus.SUCCESS);
+        Optional<DeviceControllerUserDocument> deviceControllerUserDocumentOpt = deviceControllerUserRepository
+            .findByUserId(senderId);
+        DeviceControllerUserDocument deviceControllerUserDoc;
+        if (deviceControllerUserDocumentOpt.isPresent()) {
+            deviceControllerUserDoc = deviceControllerUserDocumentOpt.get();
+            List<String> deviceIdList = deviceControllerUserDoc.getDeviceIdList();
+            List<String> controllerIdList = deviceControllerUserDoc.getControllerIdList();
+            if (!deviceIdList.contains(deviceId)) {
+                deviceIdList.add(deviceId);
+                deviceControllerUserDoc.setDeviceIdList(deviceIdList);
+            }
+            if (!controllerIdList.contains(controllerId)) {
+                controllerIdList.add(controllerId);
+                deviceControllerUserDoc.setControllerIdList(controllerIdList);
+            }
+        } else {
+            deviceControllerUserDoc = DeviceControllerUserDocument.builder()
+                .userId(senderId)
+                .controllerIdList(List.of(controllerId))
+                .deviceIdList(List.of(deviceId))
+                .build();
+        }
+        deviceControllerUserRepository.save(deviceControllerUserDoc);
     }
 
     @Override
@@ -116,18 +140,30 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
             message
         );
 
-        var updateWaterLevelDoc = UpdateWaterLevelDocument.builder()
-            .id(UPDATE_WATER_LEVEL_DOC_ID)
-            .value(data.getValue())
-            .userId(data.getUserId())
-            .createdAt(new Date(System.currentTimeMillis()))
-            .controlUnitId(data.getControlUnitId())
-            .deviceId(data.getDeviceId())
-            .build();
-        updateWaterLevelRepository.save(updateWaterLevelDoc);
+        if (!(data.getControlUnitId().equals("NONE") || data.getUserId().equals("NONE") || data.getDeviceId().equals("NONE"))) {
+            Optional<UpdateWaterLevelDocument> updateWaterLevelDocumentOtp = updateWaterLevelRepository
+                .findByUserId(data.getUserId());
+            updateWaterLevelDocumentOtp.ifPresentOrElse((document) -> {
+                document.setValue(data.getValue());
+                document.setDeviceId(data.getDeviceId());
+                document.setControlUnitId(data.getControlUnitId());
+                document.setCreatedAt(new Date(System.currentTimeMillis()));
+                updateWaterLevelRepository.save(document);
+            }, () -> {
+                var updateWaterLevelDoc = UpdateWaterLevelDocument.builder()
+                    .value(data.getValue())
+                    .userId(data.getUserId())
+                    .createdAt(new Date(System.currentTimeMillis()))
+                    .controlUnitId(data.getControlUnitId())
+                    .deviceId(data.getDeviceId())
+                    .build();
+                updateWaterLevelRepository.save(updateWaterLevelDoc);
+            });
+        }
 
-        var sigNalControl = xControlRepository.findFirstById(SIGNAL_CONTROL_DOC_ID);
-        return sigNalControl.getValue();
+        XControlDocument sigNalControlDoc = xControlRepository.findByDeviceId(data.getDeviceId())
+            .orElseThrow(() -> new NotFoundCustomException("Not found x-control with id " + data.getDeviceId()));
+        return sigNalControlDoc.getValue();
     }
 }
 

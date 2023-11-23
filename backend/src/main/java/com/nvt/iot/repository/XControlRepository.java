@@ -4,7 +4,9 @@ import com.nvt.iot.document.XControlDocument;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface XControlRepository extends MongoRepository<XControlDocument, String> {
-    XControlDocument findFirstById(String id);
+    Optional<XControlDocument> findByDeviceId(String deviceId);
 }

@@ -47,6 +47,7 @@ public class CustomHandShakeInterceptor implements HandshakeInterceptor {
                 .getQueryParams()
                 .getFirst(CLIENT_TYPE);
             if (clientId != null && clientType != null) {
+                //Check valid id
                 attributes.put(CLIENT_ID, clientId);
                 attributes.put(CLIENT_TYPE, ClientType.valueOf(clientType));
                 return true;

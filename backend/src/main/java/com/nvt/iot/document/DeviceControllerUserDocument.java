@@ -8,16 +8,21 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
-@Document(collection = "X-Control")
+import java.util.List;
+
+@Document(collection = "DeviceControllerUser")
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class XControlDocument {
+public class DeviceControllerUserDocument {
     @Id
     private String id;
-    @Field(name = "x_control")
-    private double value;
-    @Field(name = "deviceID")
-    private String deviceId;
+    @Field(name = "userID")
+    private String userId;
+    @Field(name = "deviceID_list")
+    private List<String> deviceIdList;
+    @Field(name = "controllerID_list")
+    private List<String> controllerIdList;
+
 }
