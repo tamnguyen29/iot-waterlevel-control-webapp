@@ -11,7 +11,7 @@
 #define CLIENT_TYPE "DEVICE"
 
 /*==========================SERVER CONFIG==============================*/
-#define SERVER_HOST "192.168.1.6"
+#define SERVER_HOST "192.168.1.2"
 #define SERVER_PORT 8080
 #define WS_ENDPOINT "/ws/"
 /*==========================WEBSOCKET CONFIG==============================*/
@@ -102,10 +102,8 @@ void setCurrentControlUnitId(String controlUnitId)
 {
   currentControlUnitId = controlUnitId;
 }
-/*=====================================================================*/
 
-/*==========================DEFINE WEBSOCKET FUNCTION===================*/
-String sendDataToUser(double waterLevel, String controlUnitId, String userId)
+String sendDataToUser(double waterLevel, String controlUnitId, String userId, bool isFirstSend)
 {
   DynamicJsonDocument doc(1024);
   doc["value"] = waterLevel;
@@ -113,11 +111,12 @@ String sendDataToUser(double waterLevel, String controlUnitId, String userId)
   doc["userId"] = userId;
   doc["deviceId"] = CLIENT_ID;
 
+  String uri = isFirstSend ? "/send-first-data" : "/send-data";
   String json;
   serializeJson(doc, json);
   Serial.println(json);
 
-  http.begin("http://" + String(SERVER_HOST) + ":8080/api/device/send-data");
+  http.begin("http://" + String(SERVER_HOST) + ":8080/api/device" + uri);
   http.addHeader("Content-Type", "application/json");
 
   int httpResponseCode = http.POST(json);
@@ -133,6 +132,9 @@ String sendDataToUser(double waterLevel, String controlUnitId, String userId)
   }
   http.end();
 }
+/*=====================================================================*/
+
+/*==========================DEFINE WEBSOCKET FUNCTION===================*/
 
 String getWSUrl()
 {
@@ -211,7 +213,7 @@ void handleTextMessageReceived(String text)
   {
     setCurrentUserId(jsonMessage["sender"].as<String>());
     Serial.println("Current USER Id: " + currentUserId);
-    sendDataToUser(getCurrentWaterLevelMeasurement(), currentControlUnitId, currentUserId);
+    sendDataToUser(getCurrentWaterLevelMeasurement(), currentControlUnitId, currentUserId, true);
     // Send to user connect successfully!
   }
   else if (ACTION.equals("USER_DISCONNECT_TO_DEVICE"))
@@ -324,14 +326,10 @@ void loop()
   waterLevel = getCurrentWaterLevelMeasurement();
   if (webSocketClient.isConnected() && isAllowMeasured)
   {
-    currentMillis = millis();
-    if (currentMillis - previousMillis > INTERVAL)
+    response = sendDataToUser(waterLevel, currentControlUnitId, currentUserId, false);
+    if (!(response.equals("NONE") || response.equals("-1")))
     {
-      response = sendDataToUser(waterLevel, currentControlUnitId, currentUserId);
-      if(!response.equals("NONE")) {
-        Serial.println("Response: " + response);
-      }
-      previousMillis = millis();
+      Serial.println("Response: " + response);
     }
   }
 }

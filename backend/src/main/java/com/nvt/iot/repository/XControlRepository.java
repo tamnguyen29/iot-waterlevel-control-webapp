@@ -9,4 +9,8 @@ import java.util.Optional;
 @Repository
 public interface XControlRepository extends MongoRepository<XControlDocument, String> {
     Optional<XControlDocument> findByDeviceId(String deviceId);
+
+    void deleteByDeviceId(String deviceId);
+
+    boolean existsByDeviceId(String deviceId);
 }

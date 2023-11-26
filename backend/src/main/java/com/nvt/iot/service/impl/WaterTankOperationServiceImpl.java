@@ -3,13 +3,12 @@ package com.nvt.iot.service.impl;
 import com.nvt.iot.document.DeviceControllerUserDocument;
 import com.nvt.iot.document.UpdateWaterLevelDocument;
 import com.nvt.iot.document.XControlDocument;
+import com.nvt.iot.exception.InvalidProcessValueException;
 import com.nvt.iot.exception.NotFoundCustomException;
 import com.nvt.iot.exception.WebsocketResourcesNotFoundException;
-import com.nvt.iot.model.Action;
-import com.nvt.iot.model.MeasurementStatus;
-import com.nvt.iot.model.Message;
-import com.nvt.iot.model.WaterLevelData;
+import com.nvt.iot.model.*;
 import com.nvt.iot.repository.*;
+import com.nvt.iot.service.WaterLevelMeasurementHelperService;
 import com.nvt.iot.service.WaterTankOperationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,17 +28,21 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
     private final UpdateWaterLevelRepository updateWaterLevelRepository;
     private final XControlRepository xControlRepository;
     private final DeviceControllerUserRepository deviceControllerUserRepository;
+    private final WaterLevelStoreRepository waterLevelStoreRepository;
+    private final WaterLevelMeasurementHelperService waterLevelMeasurementHelperService;
     @Value("${websocket.room.private-device}")
     private String DEVICE_PRIVATE_ROOM;
     @Value("${websocket.room.private-user}")
     private String USER_PRIVATE_ROOM;
+    @Value("${websocket.room.private-error}")
+    private String ERROR_ROOM;
 
 
     @Override
     public void startMeasurementWithControlParameter(String controllerId, String deviceId, String senderId) {
         if (!controlUnitRepository.existsById(controllerId)) {
             throw new WebsocketResourcesNotFoundException(
-                "Not found controller id starting measurement",
+                "Not found Control Parameter when starting measurement",
                 senderId
             );
         }
@@ -123,47 +126,95 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
     }
 
     @Override
-    public double getWaterLevelDataFromDevice(WaterLevelData data) {
-//        if (!connectedDeviceRepository.existsByIdAndCurrentUsingUserId(data.getDeviceId(), data.getUserId())) {
-//            throw new NotFoundCustomException("Not found connected device id " + data.getDeviceId());
-//        }
-        var message = Message.builder()
-            .sender(data.getDeviceId())
-            .action(Action.SEND_WATER_LEVEL_DATA)
-            .content(data.getValue())
-            .time(new Date(System.currentTimeMillis()))
-            .receiver(data.getUserId())
-            .build();
-        simpMessagingTemplate.convertAndSendToUser(
-            data.getUserId(),
-            USER_PRIVATE_ROOM,
-            message
-        );
-
-        if (!(data.getControlUnitId().equals("NONE") || data.getUserId().equals("NONE") || data.getDeviceId().equals("NONE"))) {
-            Optional<UpdateWaterLevelDocument> updateWaterLevelDocumentOtp = updateWaterLevelRepository
-                .findByUserId(data.getUserId());
-            updateWaterLevelDocumentOtp.ifPresentOrElse((document) -> {
-                document.setValue(data.getValue());
-                document.setDeviceId(data.getDeviceId());
-                document.setControlUnitId(data.getControlUnitId());
-                document.setCreatedAt(new Date(System.currentTimeMillis()));
-                updateWaterLevelRepository.save(document);
-            }, () -> {
-                var updateWaterLevelDoc = UpdateWaterLevelDocument.builder()
-                    .value(data.getValue())
-                    .userId(data.getUserId())
-                    .createdAt(new Date(System.currentTimeMillis()))
-                    .controlUnitId(data.getControlUnitId())
-                    .deviceId(data.getDeviceId())
-                    .build();
-                updateWaterLevelRepository.save(updateWaterLevelDoc);
-            });
+    public double getWaterLevelDataFromDevice(DataFromDevice data) {
+        boolean isValidDeviceIdAndUserId = connectedDeviceRepository.existsByIdAndCurrentUsingUserId(data.getDeviceId(), data.getUserId());
+        boolean isValidControlUnitId = controlUnitRepository.existsById(data.getControlUnitId());
+        if (!(isValidDeviceIdAndUserId && isValidControlUnitId)) {
+            String message = "Cannot find control parameter and something wrong in control process";
+            sendErrorMessageToUser(message, data.getUserId());
+            throw new NotFoundCustomException("One of the field in data is not valid!");
         }
+
+        sendDataToUser(data.getValue(), data.getDeviceId(), data.getUserId());
+
+        if (!xControlRepository.existsByDeviceId(data.getDeviceId())) {
+            waterLevelMeasurementHelperService.createFirstXControl(data.getDeviceId());
+        }
+
+        Optional<UpdateWaterLevelDocument> updateWaterLevelDocumentOtp = updateWaterLevelRepository
+            .findByUserId(data.getUserId());
+        updateWaterLevelDocumentOtp.ifPresentOrElse((document) -> {
+            document.setValue(data.getValue());
+            document.setDeviceId(data.getDeviceId());
+            document.setControlUnitId(data.getControlUnitId());
+            document.setCreatedAt(new Date(System.currentTimeMillis()));
+            updateWaterLevelRepository.save(document);
+        }, () -> waterLevelMeasurementHelperService.createFirstWaterLevelUpdate(
+            data.getUserId(),
+            data.getDeviceId(),
+            data.getControlUnitId()
+        ));
 
         XControlDocument sigNalControlDoc = xControlRepository.findByDeviceId(data.getDeviceId())
             .orElseThrow(() -> new NotFoundCustomException("Not found x-control with id " + data.getDeviceId()));
+        if (sigNalControlDoc.getValue() == -1) {
+            throw new InvalidProcessValueException("Cannot get x-control value");
+        } else {
+            //Save data to WaterLevelStore
+            if (!waterLevelStoreRepository.existsByUserIdAndDeviceIdAndControllerId(
+                data.getUserId(),
+                data.getDeviceId(),
+                data.getControlUnitId()
+            )) {
+                waterLevelMeasurementHelperService.createFirstWaterLevelStore(
+                    data.getUserId(),
+                    data.getDeviceId(),
+                    data.getControlUnitId(),
+                    List.of(new WaterLevelData(data.getValue(), new Date(System.currentTimeMillis())))
+                );
+
+            } else {
+                waterLevelStoreRepository.addWaterLevelData(
+                    data.getUserId(),
+                    data.getControlUnitId(),
+                    data.getDeviceId(),
+                    new WaterLevelData(data.getValue(), new Date(System.currentTimeMillis()))
+                );
+            }
+        }
         return sigNalControlDoc.getValue();
+    }
+
+    private void sendDataToUser(double value, String deviceId, String userId) {
+        var message = Message.builder()
+            .sender(deviceId)
+            .action(Action.SEND_WATER_LEVEL_DATA)
+            .content(value)
+            .time(new Date(System.currentTimeMillis()))
+            .receiver(userId)
+            .build();
+        simpMessagingTemplate.convertAndSendToUser(
+            userId,
+            USER_PRIVATE_ROOM,
+            message
+        );
+    }
+
+    private void sendErrorMessageToUser(String message, String userId) {
+        var sendMessage = Message.builder()
+            .sender("SERVER")
+            .content(message)
+            .action(Action.ERROR)
+            .time(new Date(System.currentTimeMillis()))
+            .receiver(userId)
+            .build();
+        simpMessagingTemplate.convertAndSendToUser(userId, ERROR_ROOM, sendMessage);
+    }
+
+    @Override
+    public double sendFirstData(DataFromDevice data) {
+        sendDataToUser(data.getValue(), data.getDeviceId(), data.getUserId());
+        return -1;
     }
 }
 

@@ -33,7 +33,8 @@ public class SecurityConfig {
                     "/swagger-ui/**",
                     "/v3/api-docs/**",
                     "/ws/**",
-                    "/api/device/send-data"
+                    "/api/device/send-data",
+                    "/api/device/send-first-data"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

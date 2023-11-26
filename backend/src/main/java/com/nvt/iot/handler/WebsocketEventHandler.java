@@ -7,10 +7,7 @@ import com.nvt.iot.model.Action;
 import com.nvt.iot.model.ClientType;
 import com.nvt.iot.model.Message;
 import com.nvt.iot.model.UsingStatus;
-import com.nvt.iot.repository.ConnectedDeviceRepository;
-import com.nvt.iot.repository.ConnectedUserRepository;
-import com.nvt.iot.repository.DeviceRepository;
-import com.nvt.iot.repository.UserRepository;
+import com.nvt.iot.repository.*;
 import com.nvt.iot.service.WebsocketHandleEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +34,8 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
     private final ConnectedDeviceRepository connectedDeviceRepository;
     private final UserRepository userRepository;
     private final DeviceRepository deviceRepository;
+    private final UpdateWaterLevelRepository updateWaterLevelRepository;
+    private final XControlRepository xControlRepository;
     @Value("${websocket.request.handshake.parameter.client-id}")
     private String CLIENT_ID;
     @Value("${websocket.request.handshake.parameter.client-type}")
@@ -91,18 +90,28 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
         final StompHeaderAccessor accessor = StompHeaderAccessor.wrap(disconnectEvent.getMessage());
         String sessionId = accessor.getSessionId();
         ClientType client = checkIsUserOrDeviceBySessionId(sessionId);
-        deleteConnectedUserOrDeviceBySessionId(client, sessionId);
-        if (client.equals(ClientType.USER) && connectedDeviceRepository.existsByCurrentUsingUserSessionId(sessionId)) {
-            var device = connectedDeviceRepository.findByCurrentUsingUserSessionId(sessionId);
-            device.setUsingStatus(UsingStatus.AVAILABLE);
-            device.setCurrentUsingUser(null);
-            connectedDeviceRepository.save(device);
 
-            sendUserInfoToSpecificDevice(null, device.getId());
+        if (client.equals(ClientType.USER)) {
+            ConnectedUserDocument connectedUserDocument = connectedUserRepository.findBySessionId(sessionId);
+            var device = connectedDeviceRepository.findByCurrentUsingUserId(
+                connectedUserDocument.getId()
+            );
+            if (device != null) {
+                sendUserInfoToSpecificDevice(null, device.getId());
+                device.setUsingStatus(UsingStatus.AVAILABLE);
+                device.setCurrentUsingUser(null);
+                connectedDeviceRepository.save(device);
+            }
+            updateWaterLevelRepository.deleteByUserId(connectedUserDocument.getId());
+            deleteConnectedUserOrDeviceBySessionId(ClientType.USER, sessionId);
             sendListDeviceToAllUser();
             sendListUserToAllUser();
-        } else if (client.equals(ClientType.DEVICE)) {
+        }
+        if (client.equals(ClientType.USER)) {
+            ConnectedDeviceDocument device = connectedDeviceRepository.findBySessionId(sessionId);
+            deleteConnectedUserOrDeviceBySessionId(ClientType.DEVICE, sessionId);
             sendListDeviceToAllUser();
+            xControlRepository.deleteByDeviceId(device.getId());
         }
     }
 

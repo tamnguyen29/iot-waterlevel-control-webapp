@@ -2,24 +2,27 @@ package com.nvt.iot;
 
 import com.nvt.iot.repository.ConnectedDeviceRepository;
 import com.nvt.iot.repository.ConnectedUserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Lazy;
 
 @SpringBootApplication
+@RequiredArgsConstructor
 public class IotApplication implements CommandLineRunner {
-	@Autowired
-	private ConnectedDeviceRepository connectedDeviceRepository;
-	@Autowired
-	private ConnectedUserRepository connectedUserRepository;
-	public static void main(String[] args) {
-		SpringApplication.run(IotApplication.class, args);
-	}
+    @Lazy
+    private final ConnectedDeviceRepository connectedDeviceRepository;
+    @Lazy
+    private final ConnectedUserRepository connectedUserRepository;
 
-	@Override
-	public void run(String... args) throws Exception {
-		connectedDeviceRepository.deleteAll();
-		connectedUserRepository.deleteAll();
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(IotApplication.class, args);
+    }
+
+    @Override
+    public void run(String... args) {
+        connectedDeviceRepository.deleteAll();
+        connectedUserRepository.deleteAll();
+    }
 }

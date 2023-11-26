@@ -5,13 +5,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Date;
-
-@Builder
 @Data
-@AllArgsConstructor
+@Builder
 @NoArgsConstructor
-public class WaterLevelStore {
+@AllArgsConstructor
+public class DataFromDevice {
     private double value;
-    private Date time;
+    private String controlUnitId;
+    private String userId;
+    private String deviceId;
 }

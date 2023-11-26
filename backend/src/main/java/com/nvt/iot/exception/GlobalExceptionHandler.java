@@ -3,7 +3,6 @@ package com.nvt.iot.exception;
 import com.nvt.iot.payload.response.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -56,6 +55,16 @@ public class GlobalExceptionHandler {
             .message(e.getMessage())
             .build();
         return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(response);
+    }
+
+    @ExceptionHandler(InvalidProcessValueException.class)
+    public ResponseEntity<?> handleInvalidProcessValueException(Exception e) {
+        var response = ErrorResponse.builder()
+            .statusCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
+            .message(e.getMessage())
+            .build();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(response);
     }
 }

@@ -7,4 +7,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ConnectedUserRepository extends MongoRepository<ConnectedUserDocument, String> {
     void deleteBySessionId(String sessionId);
+
+    ConnectedUserDocument findBySessionId(String sessionId);
 }

@@ -1,8 +1,6 @@
 package com.nvt.iot.document;
 
-import com.nvt.iot.model.ControlUnit;
-import com.nvt.iot.model.Creator;
-import com.nvt.iot.model.WaterLevelStore;
+import com.nvt.iot.model.WaterLevelData;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,10 +19,12 @@ import java.util.List;
 public class WaterLevelStoreDocument {
     @Id
     private String id;
-    @Field(name = "creator")
-    private Creator creator;
-    @Field(name = "controller")
-    private ControlUnit controlUnit;
+    @Field(name = "userID")
+    private String userId;
+    @Field(name = "controllerID")
+    private String controllerId;
+    @Field(name = "deviceID")
+    private String deviceId;
     @Field(name = "water_level")
-    private List<WaterLevelStore> waterLevels;
+    private List<WaterLevelData> waterLevelDataList;
 }

@@ -10,11 +10,9 @@ public interface ConnectedDeviceRepository extends MongoRepository<ConnectedDevi
 
     void deleteBySessionId(String sessionId);
 
-    boolean existsByCurrentUsingUserSessionId(String sessionId);
-
-    ConnectedDeviceDocument findByCurrentUsingUserSessionId(String sessionId);
-
     boolean existsByIdAndCurrentUsingUserId(String deviceId, String userId);
 
     ConnectedDeviceDocument findByCurrentUsingUserId(String userId);
+
+    ConnectedDeviceDocument findBySessionId(String sessionId);
 }
