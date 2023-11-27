@@ -1,5 +1,6 @@
 package com.nvt.iot.service.impl;
 
+import com.nvt.iot.document.ControlUnitDocument;
 import com.nvt.iot.document.DeviceControllerUserDocument;
 import com.nvt.iot.document.UpdateWaterLevelDocument;
 import com.nvt.iot.document.XControlDocument;
@@ -12,6 +13,7 @@ import com.nvt.iot.service.WaterLevelMeasurementHelperService;
 import com.nvt.iot.service.WaterTankOperationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +32,7 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
     private final DeviceControllerUserRepository deviceControllerUserRepository;
     private final WaterLevelStoreRepository waterLevelStoreRepository;
     private final WaterLevelMeasurementHelperService waterLevelMeasurementHelperService;
+    private final MongoTemplate mongoTemplate;
     @Value("${websocket.room.private-device}")
     private String DEVICE_PRIVATE_ROOM;
     @Value("${websocket.room.private-user}")
@@ -126,7 +129,7 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
     }
 
     @Override
-    public double getWaterLevelDataFromDevice(DataFromDevice data) {
+    public SignalControl getWaterLevelDataFromDevice(DataFromDevice data) {
         boolean isValidDeviceIdAndUserId = connectedDeviceRepository.existsByIdAndCurrentUsingUserId(data.getDeviceId(), data.getUserId());
         boolean isValidControlUnitId = controlUnitRepository.existsById(data.getControlUnitId());
         if (!(isValidDeviceIdAndUserId && isValidControlUnitId)) {
@@ -157,7 +160,8 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
 
         XControlDocument sigNalControlDoc = xControlRepository.findByDeviceId(data.getDeviceId())
             .orElseThrow(() -> new NotFoundCustomException("Not found x-control with id " + data.getDeviceId()));
-        if (sigNalControlDoc.getValue() == -1) {
+        if (sigNalControlDoc.getValue() == null || sigNalControlDoc.getValue() == -1) {
+            sendErrorMessageToUser("Cannot receive signal control!", data.getUserId());
             throw new InvalidProcessValueException("Cannot get x-control value");
         } else {
             //Save data to WaterLevelStore
@@ -181,8 +185,12 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
                     new WaterLevelData(data.getValue(), new Date(System.currentTimeMillis()))
                 );
             }
+            ControlUnitDocument controlUnitDocument = controlUnitRepository.getControlUnitDocumentById(data.getControlUnitId());
+            return SignalControl.builder()
+                .xControl(sigNalControlDoc.getValue())
+                .setpoint(controlUnitDocument.getSetpoint())
+                .build();
         }
-        return sigNalControlDoc.getValue();
     }
 
     private void sendDataToUser(double value, String deviceId, String userId) {

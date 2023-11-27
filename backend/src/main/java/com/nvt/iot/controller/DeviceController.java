@@ -1,6 +1,7 @@
 package com.nvt.iot.controller;
 
 import com.nvt.iot.model.DataFromDevice;
+import com.nvt.iot.model.SignalControl;
 import com.nvt.iot.payload.request.DeviceRequest;
 import com.nvt.iot.payload.response.BaseResponse;
 import com.nvt.iot.service.DeviceService;
@@ -73,7 +74,7 @@ public class DeviceController {
     @PostMapping("/send-data")
     public ResponseEntity<?> sendData(@RequestBody DataFromDevice data) {
         System.out.println("/send-data: " + data);
-        double sigNalControl = waterTankOperationService.getWaterLevelDataFromDevice(data);
+        SignalControl sigNalControl = waterTankOperationService.getWaterLevelDataFromDevice(data);
         return new ResponseEntity<>(sigNalControl, HttpStatus.OK);
     }
 

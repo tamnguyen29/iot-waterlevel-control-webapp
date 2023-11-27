@@ -25,7 +25,7 @@ public class WaterLevelMeasurementHelperServiceImp implements WaterLevelMeasurem
     public void createFirstXControl(String deviceId) {
         var XControlDoc = XControlDocument.builder()
             .deviceId(deviceId)
-            .value(-1)
+            .value(null)
             .build();
         xControlRepository.save(XControlDoc);
     }

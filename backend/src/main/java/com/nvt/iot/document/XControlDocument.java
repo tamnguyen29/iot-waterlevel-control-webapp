@@ -17,7 +17,7 @@ public class XControlDocument {
     @Id
     private String id;
     @Field(name = "x_control")
-    private double value;
+    private Double value;
     @Field(name = "deviceID")
     private String deviceId;
 }

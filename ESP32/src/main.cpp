@@ -11,7 +11,7 @@
 #define CLIENT_TYPE "DEVICE"
 
 /*==========================SERVER CONFIG==============================*/
-#define SERVER_HOST "192.168.1.2"
+#define SERVER_HOST "192.168.1.7"
 #define SERVER_PORT 8080
 #define WS_ENDPOINT "/ws/"
 /*==========================WEBSOCKET CONFIG==============================*/
@@ -30,6 +30,7 @@
 /*=====================================================================*/
 WebSocketsClient webSocketClient;
 HTTPClient http;
+WiFiClient wifiClient;
 String currentUserId;
 String currentControlUnitId;
 String message;
@@ -41,6 +42,7 @@ unsigned long previousMillis;
 unsigned long currentMillis;
 String ACTION;
 double waterLevel;
+double setpoint;
 
 /*==========================DECLARING FUNCTION==========================*/
 void wifiSetup();
@@ -116,7 +118,7 @@ String sendDataToUser(double waterLevel, String controlUnitId, String userId, bo
   serializeJson(doc, json);
   Serial.println(json);
 
-  http.begin("http://" + String(SERVER_HOST) + ":8080/api/device" + uri);
+  http.begin(wifiClient,"http://" + String(SERVER_HOST) + ":8080/api/device" + uri);
   http.addHeader("Content-Type", "application/json");
 
   int httpResponseCode = http.POST(json);
@@ -131,6 +133,17 @@ String sendDataToUser(double waterLevel, String controlUnitId, String userId, bo
     return "NONE";
   }
   http.end();
+}
+
+void notificationLedESP32()
+{
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(100);
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(100);
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(100);
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 /*=====================================================================*/
 
@@ -211,6 +224,7 @@ void handleTextMessageReceived(String text)
 
   if (ACTION.equals("USER_CONNECT_TO_DEVICE"))
   {
+    notificationLedESP32();
     setCurrentUserId(jsonMessage["sender"].as<String>());
     Serial.println("Current USER Id: " + currentUserId);
     sendDataToUser(getCurrentWaterLevelMeasurement(), currentControlUnitId, currentUserId, true);
@@ -221,6 +235,7 @@ void handleTextMessageReceived(String text)
     setCurrentUserId("NONE");
     setCurrentControlUnitId("NONE");
     isAllowMeasured = false;
+    notificationLedESP32();
     // Send to user disconnect successfully!
   }
   else if (ACTION.equals("START_MEASUREMENT"))
@@ -306,6 +321,7 @@ void setup()
   isAllowMeasured = false;
   previousMillis = 0;
   response = "NONE";
+  setpoint = 0;
 
   setCurrentUserId("NONE");
   setCurrentControlUnitId("NONE");
@@ -314,13 +330,12 @@ void setup()
 
   webSocketClient.begin(SERVER_HOST, SERVER_PORT, getWSUrl(), "wss");
   webSocketClient.setExtraHeaders();
-  webSocketClient.enableHeartbeat(10000, 10000, 5000U);
   webSocketClient.onEvent(webSocketEvent);
 }
 
 void loop()
 {
-  digitalWrite(LED_BUILTIN, WiFi.status() == WL_CONNECTED);
+  digitalWrite(LED_BUILTIN, webSocketClient.isConnected());
   webSocketClient.loop();
 
   waterLevel = getCurrentWaterLevelMeasurement();

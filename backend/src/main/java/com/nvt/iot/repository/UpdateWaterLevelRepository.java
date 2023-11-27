@@ -15,4 +15,6 @@ public interface UpdateWaterLevelRepository extends MongoRepository<UpdateWaterL
     void deleteByUserIdAndDeviceId(String userId, String deviceId);
 
     void deleteByUserId(String userId);
+
+    void deleteByDeviceId(String deviceId);
 }

@@ -93,24 +93,27 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
 
         if (client.equals(ClientType.USER)) {
             ConnectedUserDocument connectedUserDocument = connectedUserRepository.findBySessionId(sessionId);
-            var device = connectedDeviceRepository.findByCurrentUsingUserId(
-                connectedUserDocument.getId()
-            );
-            if (device != null) {
-                sendUserInfoToSpecificDevice(null, device.getId());
-                device.setUsingStatus(UsingStatus.AVAILABLE);
-                device.setCurrentUsingUser(null);
-                connectedDeviceRepository.save(device);
+            if (connectedUserDocument != null) {
+                var device = connectedDeviceRepository.findByCurrentUsingUserId(
+                    connectedUserDocument.getId()
+                );
+                if (device != null) {
+                    device.setUsingStatus(UsingStatus.AVAILABLE);
+                    device.setCurrentUsingUser(null);
+                    sendUserInfoToSpecificDevice(connectedUserDocument.getId(), device.getId());
+                    connectedDeviceRepository.save(device);
+                    sendListDeviceToAllUser();
+                }
+                deleteConnectedUserOrDeviceBySessionId(ClientType.USER, sessionId);
+                updateWaterLevelRepository.deleteByUserId(connectedUserDocument.getId());
+                sendListUserToAllUser();
             }
-            updateWaterLevelRepository.deleteByUserId(connectedUserDocument.getId());
-            deleteConnectedUserOrDeviceBySessionId(ClientType.USER, sessionId);
-            sendListDeviceToAllUser();
-            sendListUserToAllUser();
         }
-        if (client.equals(ClientType.USER)) {
+        if (client.equals(ClientType.DEVICE)) {
             ConnectedDeviceDocument device = connectedDeviceRepository.findBySessionId(sessionId);
             deleteConnectedUserOrDeviceBySessionId(ClientType.DEVICE, sessionId);
             sendListDeviceToAllUser();
+            updateWaterLevelRepository.deleteByDeviceId(device.getId());
             xControlRepository.deleteByDeviceId(device.getId());
         }
     }

@@ -7,4 +7,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ControlUnitRepository extends MongoRepository<ControlUnitDocument, String> {
     void deleteAllByCreatorId(String creatorId);
+
+    ControlUnitDocument getControlUnitDocumentById(String id);
 }
