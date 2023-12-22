@@ -2,6 +2,8 @@ package com.nvt.iot.handler;
 
 import com.nvt.iot.document.ConnectedDeviceDocument;
 import com.nvt.iot.document.ConnectedUserDocument;
+import com.nvt.iot.document.UpdateWaterLevelDocument;
+import com.nvt.iot.document.XControlDocument;
 import com.nvt.iot.exception.WebsocketResourcesNotFoundException;
 import com.nvt.iot.model.Action;
 import com.nvt.iot.model.ClientType;
@@ -44,6 +46,8 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
     private String CONNECTED_CLIENTS_ROOM;
     @Value(("${websocket.room.private-device}"))
     private String DEVICE_PRIVATE_ROOM;
+    @Value(("${websocket.room.private-user}"))
+    private String USER_PRIVATE_ROOM;
 
     @EventListener
     public void handleSessionConnectEvent(SessionConnectEvent connectEvent) {
@@ -59,7 +63,7 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
         }
         String id = (String) attributes.get(CLIENT_ID);
         ClientType clientType = (ClientType) attributes.get(CLIENT_TYPE);
-
+        Date time = new Date(System.currentTimeMillis());
         if (clientType.equals(ClientType.USER) && !connectedUserRepository.existsById(id)) {
             var user = userRepository.findById(id)
                 .orElseThrow(() -> new WebsocketResourcesNotFoundException("Not found user id: " + id, id));
@@ -67,7 +71,7 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
                 .id(id)
                 .name(user.getFullName())
                 .sessionId(accessor.getSessionId())
-                .onlineAt(new Date(System.currentTimeMillis()))
+                .onlineAt(time)
                 .build();
             connectedUserRepository.save(connectedUser);
         } else if (clientType.equals(ClientType.DEVICE)) {
@@ -78,9 +82,23 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
                 .name(device.getName())
                 .sessionId(accessor.getSessionId())
                 .usingStatus(UsingStatus.AVAILABLE)
-                .connectedAt(new Date(System.currentTimeMillis()))
+                .description(device.getDescription())
+                .connectedAt(time)
                 .build();
             connectedDeviceRepository.save(connectedDevice);
+            if (!updateWaterLevelRepository.existsByDeviceId(device.getId())) {
+                var updateDataDoc = UpdateWaterLevelDocument
+                    .builder()
+                    .deviceId(device.getId())
+                    .build();
+                updateWaterLevelRepository.save(updateDataDoc);
+            }
+            if (!xControlRepository.existsByDeviceId(device.getId())) {
+                var xControlDoc = XControlDocument.builder()
+                    .deviceId(device.getId())
+                    .build();
+                xControlRepository.save(xControlDoc);
+            }
         }
     }
 
@@ -105,12 +123,14 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
                     sendListDeviceToAllUser();
                 }
                 deleteConnectedUserOrDeviceBySessionId(ClientType.USER, sessionId);
-                updateWaterLevelRepository.deleteByUserId(connectedUserDocument.getId());
                 sendListUserToAllUser();
             }
         }
         if (client.equals(ClientType.DEVICE)) {
             ConnectedDeviceDocument device = connectedDeviceRepository.findBySessionId(sessionId);
+            if (device.getCurrentUsingUser() != null) {
+                sendDisconnectMessageToCurrentUsingUser(device.getCurrentUsingUser().getId());
+            }
             deleteConnectedUserOrDeviceBySessionId(ClientType.DEVICE, sessionId);
             sendListDeviceToAllUser();
             updateWaterLevelRepository.deleteByDeviceId(device.getId());
@@ -172,5 +192,14 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
             .time(new Date(System.currentTimeMillis()))
             .build();
         simpMessagingTemplate.convertAndSendToUser(deviceName, DEVICE_PRIVATE_ROOM, message);
+    }
+
+    private void sendDisconnectMessageToCurrentUsingUser(String userId) {
+        var message = Message.builder()
+            .sender("SERVER")
+            .action(Action.DEVICE_DISCONNECT_UNEXPECTED)
+            .time(new Date(System.currentTimeMillis()))
+            .build();
+        simpMessagingTemplate.convertAndSendToUser(userId, USER_PRIVATE_ROOM, message);
     }
 }

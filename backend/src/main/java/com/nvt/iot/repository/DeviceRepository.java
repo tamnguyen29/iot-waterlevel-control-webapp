@@ -8,8 +8,12 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface DeviceRepository extends MongoRepository<DeviceDocument, String> {
     boolean existsByName(String name);
+
     @Query("{ 'name' : ?0, '_id' : { '$ne' : ?1 } }")
     boolean existsByNameAndNotEqualId(String name, String id);
+
     boolean existsById(String id);
+
+    DeviceDocument findByName(String name);
 
 }

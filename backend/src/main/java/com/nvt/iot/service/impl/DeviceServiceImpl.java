@@ -25,7 +25,7 @@ public class DeviceServiceImpl implements DeviceService {
     private final DeviceRepository deviceRepository;
 
     @Override
-    public void add(DeviceRequest deviceRequest, BindingResult bindingResult) {
+    public DeviceDocument add(DeviceRequest deviceRequest, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
             throw new ValidationCustomException(bindingResult);
         }
@@ -41,6 +41,7 @@ public class DeviceServiceImpl implements DeviceService {
             .updatedAt(new Date(System.currentTimeMillis()))
             .build();
         deviceRepository.save(deviceDoc);
+        return deviceRepository.findByName(deviceRequest.getName());
     }
 
     @Override
@@ -84,7 +85,7 @@ public class DeviceServiceImpl implements DeviceService {
     @Override
     public void delete(String id) {
         if (deviceRepository.existsById(id)) {
-            deviceRepository.existsById(id);
+            deviceRepository.deleteById(id);
         } else {
             throw new NotFoundCustomException("Device not found with id " + id);
         }

@@ -67,4 +67,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(response);
     }
+
+    @ExceptionHandler(ControlUnitNameAlreadyExistException.class)
+    public ResponseEntity<?> handleControlUnitNameAlreadyExistException(Exception e) {
+        var response = ErrorResponse.builder()
+            .statusCode(HttpStatus.CONFLICT.value())
+            .message(e.getMessage())
+            .build();
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(response);
+    }
 }

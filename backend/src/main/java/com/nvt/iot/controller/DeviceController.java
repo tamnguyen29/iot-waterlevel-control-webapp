@@ -26,9 +26,9 @@ public class DeviceController {
         @RequestBody @Valid DeviceRequest deviceRequest,
         BindingResult bindingResult
     ) {
-        deviceService.add(deviceRequest, bindingResult);
         var response = BaseResponse.builder()
             .statusCode(201)
+            .data(deviceService.add(deviceRequest, bindingResult))
             .message("Add device successfully!")
             .build();
         return new ResponseEntity<>(response, HttpStatus.CREATED);
@@ -74,7 +74,9 @@ public class DeviceController {
     @PostMapping("/send-data")
     public ResponseEntity<?> sendData(@RequestBody DataFromDevice data) {
         System.out.println("/send-data: " + data);
+        long time = System.currentTimeMillis();
         SignalControl sigNalControl = waterTankOperationService.getWaterLevelDataFromDevice(data);
+        System.out.println("time: " + (System.currentTimeMillis() - time) * 1.0f / 1000);
         return new ResponseEntity<>(sigNalControl, HttpStatus.OK);
     }
 

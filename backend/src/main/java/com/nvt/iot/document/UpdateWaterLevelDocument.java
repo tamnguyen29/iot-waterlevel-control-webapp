@@ -1,5 +1,6 @@
 package com.nvt.iot.document;
 
+import com.nvt.iot.model.ControlParameter;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,14 +19,12 @@ import java.util.Date;
 public class UpdateWaterLevelDocument {
     @Id
     private String id;
-    @Field(name = "value")
+    @Field(name = "water_level")
     private double value;
-    @Field(name = "created_at")
-    private Date createdAt;
-    @Field(name = "userID")
-    private String userId;
-    @Field(name = "controllerID")
-    private String controlUnitId;
+    @Field(name = "timestamp")
+    private Date time;
+    @Field(name = "control_parameters")
+    private ControlParameter controlParameter;
     @Field(name = "deviceID")
     private String deviceId;
 }

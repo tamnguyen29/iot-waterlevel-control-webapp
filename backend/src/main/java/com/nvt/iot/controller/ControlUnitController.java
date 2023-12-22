@@ -31,14 +31,11 @@ public class ControlUnitController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getAllUnitControllers(
-        @RequestParam(defaultValue = "0") Integer pageNo,
-        @RequestParam(defaultValue = "10") Integer pageSize
-    ) {
+    public ResponseEntity<?> getAllUnitControllersByUserId(@RequestParam String userId) {
         var response = BaseResponse.builder()
             .statusCode(200)
             .message("Get all unit controller successfully!")
-            .data(controlUnitService.getAllUnitControls(pageNo, pageSize))
+            .data(controlUnitService.getAllUnitControlsByUserId(userId))
             .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
@@ -76,4 +73,5 @@ public class ControlUnitController {
             .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
+
 }

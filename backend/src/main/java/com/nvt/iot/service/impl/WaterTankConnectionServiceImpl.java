@@ -9,7 +9,6 @@ import com.nvt.iot.repository.ConnectedDeviceRepository;
 import com.nvt.iot.repository.ConnectedUserRepository;
 import com.nvt.iot.repository.UpdateWaterLevelRepository;
 import com.nvt.iot.repository.XControlRepository;
-import com.nvt.iot.service.WaterLevelMeasurementHelperService;
 import com.nvt.iot.service.WaterTankConnectionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,7 +28,6 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
     private final ConnectedUserRepository connectedUserRepository;
     private final ConnectedDeviceRepository connectedDeviceRepository;
     private final SimpMessagingTemplate simpMessagingTemplate;
-    private final WaterLevelMeasurementHelperService waterLevelMeasurementHelperService;
     private final XControlRepository xControlRepository;
     private final UpdateWaterLevelRepository updateWaterLevelRepository;
     @Value("${websocket.request.handshake.parameter.client-id}")
@@ -87,21 +85,8 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
             connectedDevice.setCurrentUsingUser(currentUsingUser);
             connectedDeviceRepository.save(connectedDevice);
 
-            sendUserInfoToSpecificDevice(user.getName(), deviceId);
             sendListDeviceToAllUser();
-            //Send user connected successfully
-            sendMessageToUserWhenTryingToConnectToDevice(user.getName(), ConnectDeviceStatus.SUCCESS);
-            //Create document update
-            if (!xControlRepository.existsByDeviceId(deviceId)) {
-                waterLevelMeasurementHelperService.createFirstXControl(deviceId);
-            }
-            if (!updateWaterLevelRepository.existsByUserId(user.getName())) {
-                waterLevelMeasurementHelperService.createFirstWaterLevelUpdate(
-                    user.getName(),
-                    deviceId,
-                    null
-                );
-            }
+            sendUserInfoToSpecificDevice(user.getName(), deviceId);
         } else {
             sendMessageToUserWhenTryingToConnectToDevice(user.getName(), ConnectDeviceStatus.FAILURE);
         }
@@ -136,11 +121,8 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
             sendMessageToUserWhenTryingToDisConnectToDevice(user.getName(), DisconnectDeviceStatus.SUCCESS);
             sendListDeviceToAllUser();
         });
-        if (updateWaterLevelRepository.existsByUserId(user.getName())) {
-            updateWaterLevelRepository.deleteByUserIdAndDeviceId(
-                user.getName(),
-                deviceId
-            );
+        if (updateWaterLevelRepository.existsByDeviceId(deviceId)) {
+            updateWaterLevelRepository.deleteByDeviceId(deviceId);
         }
         if (xControlRepository.existsByDeviceId(deviceId)) {
             xControlRepository.deleteByDeviceId(deviceId);

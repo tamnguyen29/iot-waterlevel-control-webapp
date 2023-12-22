@@ -1,6 +1,5 @@
 package com.nvt.iot.payload.request;
 
-import com.nvt.iot.model.KalmanFilter;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -29,10 +28,7 @@ public class ControlUnitRequest {
     @DecimalMax(value = "30.0", message = "Setpoint must be smaller than 30")
     private Double setpoint;
 
-    @NotNull(message = "Kalman filter is required!")
-    private KalmanFilter kalmanFilter;
-
     @NotNull(message = "Creator is required!")
     @NotEmpty(message = "Creator id can not be empty!")
-    private String creatorId;
+    private String userId;
 }

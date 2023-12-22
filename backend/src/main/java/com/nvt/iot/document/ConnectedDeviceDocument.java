@@ -24,6 +24,8 @@ public class ConnectedDeviceDocument {
     private String name;
     @Field(name = "session_id")
     private String sessionId;
+    @Field(name = "description")
+    private String description;
     @Field(name = "using_status")
     private UsingStatus usingStatus;
     @Field(name = "connected_user")

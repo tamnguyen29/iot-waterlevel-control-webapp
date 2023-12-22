@@ -1,7 +1,5 @@
 package com.nvt.iot.document;
 
-import com.nvt.iot.model.Creator;
-import com.nvt.iot.model.KalmanFilter;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,11 +24,8 @@ public class ControlUnitDocument {
     private String name;
     @Field(name = "setpoint")
     private double setpoint;
-    @Field(name = "kalmanfilter")
-    private KalmanFilter kalmanFilter;
-    @Field(name = "creator")
-    private Creator creator;
-
+    @Field(name = "userID")
+    private String userId;
     @Field(name = "created_at")
     private Date createdAt;
 

@@ -1,11 +1,12 @@
 package com.nvt.iot.service;
 
+import com.nvt.iot.model.DataFromDevice;
 import com.nvt.iot.model.WaterLevelData;
 
 import java.util.List;
 
 public interface WaterLevelMeasurementHelperService {
-    void createFirstWaterLevelUpdate(String userId, String deviceId, String controllerId);
+    void createFirstWaterLevelUpdate(DataFromDevice data);
 
     void createFirstXControl(String deviceId);
 

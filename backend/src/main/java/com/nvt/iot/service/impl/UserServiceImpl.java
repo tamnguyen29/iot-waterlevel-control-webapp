@@ -84,7 +84,7 @@ public class UserServiceImpl implements UserService {
 
         if (userRepository.existsById(id)) {
             userRepository.deleteById(id);
-            controlUnitRepository.deleteAllByCreatorId(id);
+            controlUnitRepository.deleteAllByUserId(id);
         } else {
             throw new NotFoundCustomException("Not found user with id: " + id);
         }

@@ -8,13 +8,9 @@ import java.util.Optional;
 
 @Repository
 public interface UpdateWaterLevelRepository extends MongoRepository<UpdateWaterLevelDocument, String> {
-    Optional<UpdateWaterLevelDocument> findByUserId(String userId);
+    Optional<UpdateWaterLevelDocument> findByDeviceId(String userId);
 
-    boolean existsByUserId(String userId);
-
-    void deleteByUserIdAndDeviceId(String userId, String deviceId);
-
-    void deleteByUserId(String userId);
+    boolean existsByDeviceId(String deviceId);
 
     void deleteByDeviceId(String deviceId);
 }
