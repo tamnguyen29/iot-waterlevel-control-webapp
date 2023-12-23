@@ -5,6 +5,7 @@ import com.nvt.iot.model.SignalControl;
 import com.nvt.iot.payload.request.DeviceRequest;
 import com.nvt.iot.payload.response.BaseResponse;
 import com.nvt.iot.service.DeviceService;
+import com.nvt.iot.service.WaterTankConnectionService;
 import com.nvt.iot.service.WaterTankOperationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,7 @@ import javax.validation.Valid;
 public class DeviceController {
     private final DeviceService deviceService;
     private final WaterTankOperationService waterTankOperationService;
+    private final WaterTankConnectionService waterTankConnectionService;
 
     @PostMapping("/add")
     public ResponseEntity<?> addDevice(
@@ -85,5 +87,25 @@ public class DeviceController {
         System.out.println("/send-data: " + data);
         double sigNalControl = waterTankOperationService.sendFirstData(data);
         return new ResponseEntity<>(sigNalControl, HttpStatus.OK);
+    }
+
+    @GetMapping("/connect/{deviceId}")
+    public ResponseEntity<?> connectDevice(@PathVariable String deviceId, @RequestParam String userId) {
+        var response = BaseResponse.builder()
+            .statusCode(200)
+            .data(waterTankConnectionService.connectToDevice(deviceId, userId))
+            .message("Connect successfully!")
+            .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/stop-connect/{deviceId}")
+    public ResponseEntity<?> stopConnectDevice(@PathVariable String deviceId, @RequestParam String userId) {
+        waterTankConnectionService.stopConnectToDevice(deviceId, userId);
+        var response = BaseResponse.builder()
+            .statusCode(200)
+            .message("Stop connect successfully!")
+            .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

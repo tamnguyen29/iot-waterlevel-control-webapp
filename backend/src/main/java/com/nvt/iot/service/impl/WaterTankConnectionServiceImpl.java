@@ -2,13 +2,13 @@ package com.nvt.iot.service.impl;
 
 import com.nvt.iot.document.ConnectedDeviceDocument;
 import com.nvt.iot.document.ConnectedUserDocument;
-import com.nvt.iot.exception.WebsocketResourcesNotFoundException;
-import com.nvt.iot.exception.WebsocketValidationException;
+import com.nvt.iot.exception.DeviceNotAvailableException;
+import com.nvt.iot.exception.NotFoundCustomException;
+import com.nvt.iot.exception.ValidationCustomException;
 import com.nvt.iot.model.*;
+import com.nvt.iot.payload.response.ConnectDeviceResponse;
 import com.nvt.iot.repository.ConnectedDeviceRepository;
 import com.nvt.iot.repository.ConnectedUserRepository;
-import com.nvt.iot.repository.UpdateWaterLevelRepository;
-import com.nvt.iot.repository.XControlRepository;
 import com.nvt.iot.service.WaterTankConnectionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +16,6 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
-import java.security.Principal;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -28,8 +27,6 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
     private final ConnectedUserRepository connectedUserRepository;
     private final ConnectedDeviceRepository connectedDeviceRepository;
     private final SimpMessagingTemplate simpMessagingTemplate;
-    private final XControlRepository xControlRepository;
-    private final UpdateWaterLevelRepository updateWaterLevelRepository;
     @Value("${websocket.request.handshake.parameter.client-id}")
     private String CLIENT_ID;
     @Value("${websocket.request.handshake.parameter.client-type}")
@@ -59,23 +56,19 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
     }
 
     @Override
-    public void connectToDevice(String deviceId, Principal user) {
-        if (deviceId == null || deviceId.trim().isEmpty()) {
-            throw new WebsocketValidationException(
-                String.format("Device id invalid when user(%s) try to connect.", user.getName()),
-                user.getName());
-        }
+    public ConnectDeviceResponse connectToDevice(String deviceId, String userId) {
+        validateIsNotNullOrEmpty(deviceId);
+        validateIsNotNullOrEmpty(userId);
+
         ConnectedDeviceDocument connectedDevice = connectedDeviceRepository.findById(deviceId)
-            .orElseThrow(() -> new WebsocketResourcesNotFoundException(
-                String.format("Device not found with %s when user(%s) try to connect", deviceId, user.getName()),
-                user.getName())
+            .orElseThrow(
+                () -> new NotFoundCustomException("Not found device with id " + deviceId)
             );
 
         if (connectedDevice.getUsingStatus().equals(UsingStatus.AVAILABLE)) {
-            ConnectedUserDocument userDocument = connectedUserRepository.findById(user.getName())
-                .orElseThrow(() -> new WebsocketResourcesNotFoundException(
-                    "Not found user " + user.getName(), user.getName())
-                );
+            ConnectedUserDocument userDocument = connectedUserRepository.findById(userId).orElseThrow(
+                () -> new NotFoundCustomException("Can't not find user information!")
+            );
             var currentUsingUser = CurrentUsingUser.builder()
                 .id(userDocument.getId())
                 .name(userDocument.getName())
@@ -86,29 +79,27 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
             connectedDeviceRepository.save(connectedDevice);
 
             sendListDeviceToAllUser();
-            sendUserInfoToSpecificDevice(user.getName(), deviceId);
+            sendUserInfoToSpecificDevice(userId, deviceId);
         } else {
-            sendMessageToUserWhenTryingToConnectToDevice(user.getName(), ConnectDeviceStatus.FAILURE);
+            if (!connectedDevice.getCurrentUsingUser().getId().equals(userId)) {
+                throw new DeviceNotAvailableException("Device already used by "
+                    + connectedDevice.getCurrentUsingUser().getName());
+            }
         }
-
-
+        return ConnectDeviceResponse.builder()
+            .device(connectedDevice)
+            .connectDeviceTime(new Date(System.currentTimeMillis()))
+            .build();
     }
 
     @Override
-    public void stopConnectToDevice(String deviceId, Principal user) {
-        if (deviceId == null || deviceId.trim().isEmpty()) {
-            throw new WebsocketValidationException(
-                String.format("Device id invalid when user(%s) try to stop connecting.", user.getName()),
-                user.getName());
-        }
+    public void stopConnectToDevice(String deviceId, String userId) {
+        validateIsNotNullOrEmpty(deviceId);
+        validateIsNotNullOrEmpty(userId);
 
         //Check device is currently used by this user
-        if (!connectedDeviceRepository.existsByIdAndCurrentUsingUserId(deviceId, user.getName())) {
-            sendMessageToUserWhenTryingToDisConnectToDevice(user.getName(), DisconnectDeviceStatus.FAILURE);
-            throw new WebsocketResourcesNotFoundException(
-                String.format("Not found connected device[%s] or current using user[%s].", deviceId, user.getName()),
-                user.getName()
-            );
+        if (!connectedDeviceRepository.existsByIdAndCurrentUsingUserId(deviceId, userId)) {
+            throw new NotFoundCustomException("Not found device or user connect!");
         }
 
         Optional<ConnectedDeviceDocument> deviceDocumentOptional = connectedDeviceRepository.findById(deviceId);
@@ -117,16 +108,9 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
             deviceDocument.setCurrentUsingUser(null);
             connectedDeviceRepository.save(deviceDocument);
 
-            sendDisconnectMessageToSpecificDevice(deviceId, user.getName());
-            sendMessageToUserWhenTryingToDisConnectToDevice(user.getName(), DisconnectDeviceStatus.SUCCESS);
+            sendDisconnectMessageToSpecificDevice(deviceId, userId);
             sendListDeviceToAllUser();
         });
-        if (updateWaterLevelRepository.existsByDeviceId(deviceId)) {
-            updateWaterLevelRepository.deleteByDeviceId(deviceId);
-        }
-        if (xControlRepository.existsByDeviceId(deviceId)) {
-            xControlRepository.deleteByDeviceId(deviceId);
-        }
     }
 
     @Override
@@ -173,34 +157,6 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
         );
     }
 
-    private void sendMessageToUserWhenTryingToConnectToDevice(
-        String userName,
-        ConnectDeviceStatus connectDeviceStatus
-    ) {
-        var message = Message.builder()
-            .action(Action.USER_CONNECT_TO_DEVICE)
-            .sender("SERVER")
-            .content(connectDeviceStatus)
-            .time(new Date(System.currentTimeMillis()))
-            .receiver(userName)
-            .build();
-        simpMessagingTemplate.convertAndSendToUser(userName, USER_PRIVATE_ROOM, message);
-    }
-
-    private void sendMessageToUserWhenTryingToDisConnectToDevice(
-        String userName,
-        DisconnectDeviceStatus disconnectDeviceStatus
-    ) {
-        var message = Message.builder()
-            .sender("SERVER")
-            .action(Action.USER_DISCONNECT_TO_DEVICE)
-            .content(disconnectDeviceStatus)
-            .time(new Date(System.currentTimeMillis()))
-            .receiver(userName)
-            .build();
-        simpMessagingTemplate.convertAndSendToUser(userName, USER_PRIVATE_ROOM, message);
-    }
-
     @Override
     public void sendUserInfoToSpecificDevice(String userId, String deviceName) {
         var message = Message.builder()
@@ -221,5 +177,11 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
             .time(new Date(System.currentTimeMillis()))
             .build();
         simpMessagingTemplate.convertAndSendToUser(deviceId, DEVICE_PRIVATE_ROOM, message);
+    }
+
+    void validateIsNotNullOrEmpty(String id) {
+        if (id == null || id.trim().isEmpty()) {
+            throw new ValidationCustomException("Invalid id: " + id);
+        }
     }
 }

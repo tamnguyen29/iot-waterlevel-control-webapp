@@ -1,40 +1,44 @@
 package com.nvt.iot.controller;
 
+import com.nvt.iot.payload.response.BaseResponse;
 import com.nvt.iot.service.WaterTankOperationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.handler.annotation.DestinationVariable;
-import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.stereotype.Controller;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-import java.security.Principal;
-
-@Controller
+@RestController
 @RequiredArgsConstructor
 @Slf4j
+@RequestMapping("/api/operation")
 public class WaterTankOperationController {
     private final WaterTankOperationService waterTankOperationService;
 
-    @MessageMapping("/operation/start-measurement/{deviceId}")
-    public void getStartMeasurementParameters(
-        @DestinationVariable String deviceId,
-        @Payload String controllerId,
-        Principal user
+    @GetMapping("/start-measurement/{deviceId}")
+    public ResponseEntity<?> startMeasurement(
+        @PathVariable String deviceId,
+        @RequestParam String controlUnitId,
+        @RequestParam String userId
     ) {
-        log.info("{/operation/start-measurement/{deviceId}}: deviceId[" + deviceId + "] + " +
-            "Controller id[" + controllerId + "], user[" + user.getName() + "]");
-        waterTankOperationService.startMeasurementWithControlParameter(controllerId, deviceId, user.getName());
+        waterTankOperationService.startMeasurement(controlUnitId, deviceId, userId);
+        var response = BaseResponse.builder()
+            .statusCode(200)
+            .message("Start measurement successfully!")
+            .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @MessageMapping("/operation/stop-measurement/{deviceId}")
-    public void getStartMeasurementParameters(
-        @DestinationVariable String deviceId,
-        Principal user
+    @GetMapping("/stop-measurement/{deviceId}")
+    public ResponseEntity<?> startMeasurement(
+        @PathVariable String deviceId,
+        @RequestParam String userId
     ) {
-        log.info("{/operation/stop-measurement/{deviceId}}: deviceId[" + deviceId + "]" +
-            ", user[" + user.getName() + "]");
-        waterTankOperationService.stopMeasurement(deviceId, user.getName());
+        waterTankOperationService.stopMeasurement(deviceId, userId);
+        var response = BaseResponse.builder()
+            .statusCode(200)
+            .message("Stop measurement successfully!")
+            .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
-
 }

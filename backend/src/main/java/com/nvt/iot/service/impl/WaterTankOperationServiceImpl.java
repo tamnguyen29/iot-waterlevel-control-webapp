@@ -3,7 +3,6 @@ package com.nvt.iot.service.impl;
 import com.nvt.iot.document.*;
 import com.nvt.iot.exception.InvalidProcessValueException;
 import com.nvt.iot.exception.NotFoundCustomException;
-import com.nvt.iot.exception.WebsocketResourcesNotFoundException;
 import com.nvt.iot.model.*;
 import com.nvt.iot.repository.*;
 import com.nvt.iot.service.WaterLevelMeasurementHelperService;
@@ -17,9 +16,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -37,68 +34,68 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
     private String DEVICE_PRIVATE_ROOM;
     @Value("${websocket.room.private-user}")
     private String USER_PRIVATE_ROOM;
-    @Value("${websocket.room.private-error}")
-    private String ERROR_ROOM;
-
 
     @Override
-    public void startMeasurementWithControlParameter(String controllerId, String deviceId, String senderId) {
+    public void startMeasurement(String controllerId, String deviceId, String userId) {
         if (!controlUnitRepository.existsById(controllerId)) {
-            throw new WebsocketResourcesNotFoundException(
-                "Not found Control Parameter when starting measurement",
-                senderId
-            );
+            throw new NotFoundCustomException("Not found control parameter");
         }
 
-        if (!connectedDeviceRepository.existsByIdAndCurrentUsingUserId(deviceId, senderId)) {
-            throw new WebsocketResourcesNotFoundException(
-                "Not found online user or connected device when starting measurement",
-                senderId
-            );
+        if (!connectedDeviceRepository.existsByIdAndCurrentUsingUserId(deviceId, userId)) {
+            throw new NotFoundCustomException("Not found device with current user connected!");
         }
 
-        sendMeasurementMessageToDevice(senderId,
+        Optional<DeviceControllerUserDocument> deviceControllerUserDocumentOpt = deviceControllerUserRepository
+            .findByUserId(userId);
+
+        deviceControllerUserDocumentOpt.ifPresentOrElse((deviceControllerUserDocument) -> {
+            Map<String, List<String>> idMap = deviceControllerUserDocument.getDeviceIdControlUnitIds();
+            if (idMap.containsKey(deviceId)) {
+                List<String> controllerIdList = idMap.get(deviceId);
+                if (!existByControllerId(controllerIdList, controllerId)) {
+                    controllerIdList.add(controllerId);
+                    idMap.put(deviceId, controllerIdList);
+                }
+            } else {
+                idMap.put(deviceId, List.of(controllerId));
+            }
+            deviceControllerUserDocument.setDeviceIdControlUnitIds(idMap);
+            deviceControllerUserRepository.save(deviceControllerUserDocument);
+        }, () -> {
+            Map<String, List<String>> newIdMap = new HashMap<>();
+            newIdMap.put(deviceId, List.of(controllerId));
+            var deviceControllerUserDocument = DeviceControllerUserDocument.builder()
+                .userId(userId)
+                .deviceIdControlUnitIds(newIdMap)
+                .build();
+            deviceControllerUserRepository.save(deviceControllerUserDocument);
+        });
+
+        sendMeasurementMessageToDevice(userId,
             deviceId,
             controllerId,
             Action.START_MEASUREMENT
         );
-        sendMeasurementMessageBackToUser(senderId, MeasurementStatus.SUCCESS);
-        Optional<DeviceControllerUserDocument> deviceControllerUserDocumentOpt = deviceControllerUserRepository
-            .findByUserId(senderId);
-        DeviceControllerUserDocument deviceControllerUserDoc;
-        if (deviceControllerUserDocumentOpt.isPresent()) {
-            deviceControllerUserDoc = deviceControllerUserDocumentOpt.get();
-            List<String> deviceIdList = deviceControllerUserDoc.getDeviceIdList();
-            List<String> controllerIdList = deviceControllerUserDoc.getControllerIdList();
-            if (!deviceIdList.contains(deviceId)) {
-                deviceIdList.add(deviceId);
-                deviceControllerUserDoc.setDeviceIdList(deviceIdList);
+    }
+
+    boolean existByControllerId(List<String> controllerIdList, String id) {
+        if (controllerIdList.size() > 0) {
+            for (String idItem : controllerIdList) {
+                if (idItem.equals(id)) {
+                    return true;
+                }
             }
-            if (!controllerIdList.contains(controllerId)) {
-                controllerIdList.add(controllerId);
-                deviceControllerUserDoc.setControllerIdList(controllerIdList);
-            }
-        } else {
-            deviceControllerUserDoc = DeviceControllerUserDocument.builder()
-                .userId(senderId)
-                .controllerIdList(List.of(controllerId))
-                .deviceIdList(List.of(deviceId))
-                .build();
         }
-        deviceControllerUserRepository.save(deviceControllerUserDoc);
+        return false;
     }
 
     @Override
     public void stopMeasurement(String deviceId, String senderId) {
         if (!connectedDeviceRepository.existsByIdAndCurrentUsingUserId(deviceId, senderId)) {
-            sendMeasurementMessageBackToUser(senderId, MeasurementStatus.FAILURE);
-            throw new WebsocketResourcesNotFoundException(
-                "Not found connected device id or user id.", senderId
-            );
+            throw new NotFoundCustomException("Not found device with current user connected!");
         }
 
         sendMeasurementMessageToDevice(senderId, deviceId, null, Action.STOP_MEASUREMENT);
-        sendMeasurementMessageBackToUser(senderId, MeasurementStatus.SUCCESS);
     }
 
     private void sendMeasurementMessageToDevice(
@@ -117,25 +114,10 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
         simpMessagingTemplate.convertAndSendToUser(receiver, DEVICE_PRIVATE_ROOM, message);
     }
 
-    private void sendMeasurementMessageBackToUser(String user, MeasurementStatus status) {
-        var message = Message.builder()
-            .sender("SERVER")
-            .action(Action.START_MEASUREMENT)
-            .content(status)
-            .time(new Date(System.currentTimeMillis()))
-            .receiver(user)
-            .build();
-        simpMessagingTemplate.convertAndSendToUser(user, USER_PRIVATE_ROOM, message);
-    }
-
     @Override
     public SignalControl getWaterLevelDataFromDevice(DataFromDevice data) {
         Date time = new Date(System.currentTimeMillis());
-        sendDataToUser(
-            data,
-            time,
-            Action.SEND_WATER_LEVEL_DATA
-        );
+        sendDataToUser(data, time);
 
         Optional<UpdateWaterLevelDocument> updateWaterLevelDocumentOtp = updateWaterLevelRepository
             .findByDeviceId(data.getDeviceId());
@@ -156,7 +138,6 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
         XControlDocument sigNalControlDoc = xControlRepository.findByDeviceId(data.getDeviceId())
             .orElseThrow(() -> new NotFoundCustomException("Not found x-control with id " + data.getDeviceId()));
         if (sigNalControlDoc.getValue() == null || sigNalControlDoc.getValue() == -1) {
-            sendErrorMessageToUser("Cannot receive signal control!", data.getUserId());
             throw new InvalidProcessValueException("Cannot get x-control value");
         } else {
             //Save data to WaterLevelStore
@@ -199,10 +180,10 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
         mongoTemplate.updateFirst(query, update, WaterLevelStoreDocument.class);
     }
 
-    private void sendDataToUser(DataFromDevice data, Date time, Action action) {
+    private void sendDataToUser(DataFromDevice data, Date time) {
         var message = Message.builder()
             .sender(data.getDeviceId())
-            .action(action)
+            .action(Action.SEND_WATER_LEVEL_DATA)
             .content(new WaterLevelData(data.getValue(), time))
             .time(time)
             .receiver(data.getUserId())
@@ -214,20 +195,9 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
         );
     }
 
-    private void sendErrorMessageToUser(String message, String userId) {
-        var sendMessage = Message.builder()
-            .sender("SERVER")
-            .content(message)
-            .action(Action.ERROR_CONTROL_SIGNAL)
-            .time(new Date(System.currentTimeMillis()))
-            .receiver(userId)
-            .build();
-        simpMessagingTemplate.convertAndSendToUser(userId, ERROR_ROOM, sendMessage);
-    }
-
     @Override
     public double sendFirstData(DataFromDevice data) {
-        sendDataToUser(data, new Date(System.currentTimeMillis()), Action.USER_CONNECT_TO_DEVICE);
+        sendDataToUser(data, new Date(System.currentTimeMillis()));
         return -1;
     }
 }

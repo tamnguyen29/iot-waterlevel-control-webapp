@@ -8,7 +8,7 @@ import java.util.List;
 
 @Repository
 public interface ControlUnitRepository extends MongoRepository<ControlUnitDocument, String> {
-    boolean existsByName(String name);
+    boolean existsByNameAndUserId(String name, String userId);
 
     ControlUnitDocument getControlUnitDocumentById(String id);
 

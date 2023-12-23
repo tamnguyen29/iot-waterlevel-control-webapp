@@ -2,8 +2,6 @@ package com.nvt.iot.handler;
 
 import com.nvt.iot.document.ConnectedDeviceDocument;
 import com.nvt.iot.document.ConnectedUserDocument;
-import com.nvt.iot.document.UpdateWaterLevelDocument;
-import com.nvt.iot.document.XControlDocument;
 import com.nvt.iot.exception.WebsocketResourcesNotFoundException;
 import com.nvt.iot.model.Action;
 import com.nvt.iot.model.ClientType;
@@ -86,19 +84,19 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
                 .connectedAt(time)
                 .build();
             connectedDeviceRepository.save(connectedDevice);
-            if (!updateWaterLevelRepository.existsByDeviceId(device.getId())) {
-                var updateDataDoc = UpdateWaterLevelDocument
-                    .builder()
-                    .deviceId(device.getId())
-                    .build();
-                updateWaterLevelRepository.save(updateDataDoc);
-            }
-            if (!xControlRepository.existsByDeviceId(device.getId())) {
-                var xControlDoc = XControlDocument.builder()
-                    .deviceId(device.getId())
-                    .build();
-                xControlRepository.save(xControlDoc);
-            }
+//            if (!updateWaterLevelRepository.existsByDeviceId(device.getId())) {
+//                var updateDataDoc = UpdateWaterLevelDocument
+//                    .builder()
+//                    .deviceId(device.getId())
+//                    .build();
+//                updateWaterLevelRepository.save(updateDataDoc);
+//            }
+//            if (!xControlRepository.existsByDeviceId(device.getId())) {
+//                var xControlDoc = XControlDocument.builder()
+//                    .deviceId(device.getId())
+//                    .build();
+//                xControlRepository.save(xControlDoc);
+//            }
         }
     }
 
@@ -133,8 +131,8 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
             }
             deleteConnectedUserOrDeviceBySessionId(ClientType.DEVICE, sessionId);
             sendListDeviceToAllUser();
-            updateWaterLevelRepository.deleteByDeviceId(device.getId());
-            xControlRepository.deleteByDeviceId(device.getId());
+//            updateWaterLevelRepository.deleteByDeviceId(device.getId());
+//            xControlRepository.deleteByDeviceId(device.getId());
         }
     }
 

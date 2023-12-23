@@ -31,7 +31,7 @@ public class ControlUnitServiceImpl implements ControlUnitService {
             throw new NotFoundCustomException("User not found with id " + controlUnitRequest.getUserId());
         }
 
-        if (controlUnitRepository.existsByName(controlUnitRequest.getName())) {
+        if (controlUnitRepository.existsByNameAndUserId(controlUnitRequest.getName(), controlUnitRequest.getUserId())) {
             throw new ControlUnitNameAlreadyExistException(controlUnitRequest.getName() + " already exist!");
         }
 

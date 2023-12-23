@@ -77,4 +77,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT)
             .body(response);
     }
+
+    @ExceptionHandler(DeviceNotAvailableException.class)
+    public ResponseEntity<?> handleDeviceNotAvailableException(Exception e) {
+        var response = ErrorResponse.builder()
+            .statusCode(HttpStatus.METHOD_NOT_ALLOWED.value())
+            .message(e.getMessage())
+            .build();
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+            .body(response);
+    }
 }

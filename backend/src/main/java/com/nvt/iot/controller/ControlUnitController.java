@@ -73,5 +73,4 @@ public class ControlUnitController {
             .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
-
 }

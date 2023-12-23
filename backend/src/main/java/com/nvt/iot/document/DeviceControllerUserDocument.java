@@ -9,6 +9,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.List;
+import java.util.Map;
 
 @Document(collection = "DeviceControllerUser")
 @Data
@@ -20,9 +21,6 @@ public class DeviceControllerUserDocument {
     private String id;
     @Field(name = "userID")
     private String userId;
-    @Field(name = "deviceID_list")
-    private List<String> deviceIdList;
-    @Field(name = "controllerID_list")
-    private List<String> controllerIdList;
-
+    @Field(name = "control-unit_device_ids")
+    private Map<String, List<String>> deviceIdControlUnitIds;
 }

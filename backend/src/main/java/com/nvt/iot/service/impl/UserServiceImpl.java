@@ -10,6 +10,7 @@ import com.nvt.iot.payload.request.UserRequest;
 import com.nvt.iot.payload.response.UsersResponse;
 import com.nvt.iot.repository.ControlUnitRepository;
 import com.nvt.iot.repository.UserRepository;
+import com.nvt.iot.repository.WaterLevelStoreRepository;
 import com.nvt.iot.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -31,6 +32,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final ControlUnitRepository controlUnitRepository;
     private final PasswordEncoder passwordEncoder;
+    private final WaterLevelStoreRepository waterLevelStoreRepository;
 
     @Override
     public UsersResponse getAllUsers(Integer pageNo, Integer pageSize) {
@@ -83,11 +85,12 @@ public class UserServiceImpl implements UserService {
         validateUserIdFormat(id);
 
         if (userRepository.existsById(id)) {
-            userRepository.deleteById(id);
-            controlUnitRepository.deleteAllByUserId(id);
-        } else {
             throw new NotFoundCustomException("Not found user with id: " + id);
+
         }
+        userRepository.deleteById(id);
+        controlUnitRepository.deleteAllByUserId(id);
+        waterLevelStoreRepository.deleteAllByUserId(id);
     }
 
     @Override
