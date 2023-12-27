@@ -1,6 +1,10 @@
 package com.nvt.iot.service;
 
 
-public interface WaterLevelStoreService {
+import com.nvt.iot.model.WaterLevelData;
 
+import java.util.List;
+
+public interface WaterLevelStoreService {
+    List<WaterLevelData> getAllData(String userId, String controlUnitId, String deviceId);
 }

@@ -1,5 +1,6 @@
 package com.nvt.iot.document;
 
+import com.nvt.iot.model.ControlUnit;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,5 +23,5 @@ public class DeviceControllerUserDocument {
     @Field(name = "userID")
     private String userId;
     @Field(name = "control-unit_device_ids")
-    private Map<String, List<String>> deviceIdControlUnitIds;
+    private Map<String, List<ControlUnit>> deviceIdControlUnit;
 }

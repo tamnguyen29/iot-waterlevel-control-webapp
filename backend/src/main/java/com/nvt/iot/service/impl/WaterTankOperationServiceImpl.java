@@ -3,6 +3,7 @@ package com.nvt.iot.service.impl;
 import com.nvt.iot.document.*;
 import com.nvt.iot.exception.InvalidProcessValueException;
 import com.nvt.iot.exception.NotFoundCustomException;
+import com.nvt.iot.mapper.ControlUnitDTOMapper;
 import com.nvt.iot.model.*;
 import com.nvt.iot.repository.*;
 import com.nvt.iot.service.WaterLevelMeasurementHelperService;
@@ -29,6 +30,7 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
     private final DeviceControllerUserRepository deviceControllerUserRepository;
     private final WaterLevelStoreRepository waterLevelStoreRepository;
     private final WaterLevelMeasurementHelperService waterLevelMeasurementHelperService;
+    private final ControlUnitDTOMapper controlUnitDTOMapper;
     private final MongoTemplate mongoTemplate;
     @Value("${websocket.room.private-device}")
     private String DEVICE_PRIVATE_ROOM;
@@ -37,9 +39,9 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
 
     @Override
     public void startMeasurement(String controllerId, String deviceId, String userId) {
-        if (!controlUnitRepository.existsById(controllerId)) {
-            throw new NotFoundCustomException("Not found control parameter");
-        }
+        var controlUnitDoc = controlUnitRepository.findById(controllerId).orElseThrow(
+            () -> new NotFoundCustomException("Not found control parameter")
+        );
 
         if (!connectedDeviceRepository.existsByIdAndCurrentUsingUserId(deviceId, userId)) {
             throw new NotFoundCustomException("Not found device with current user connected!");
@@ -49,24 +51,24 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
             .findByUserId(userId);
 
         deviceControllerUserDocumentOpt.ifPresentOrElse((deviceControllerUserDocument) -> {
-            Map<String, List<String>> idMap = deviceControllerUserDocument.getDeviceIdControlUnitIds();
-            if (idMap.containsKey(deviceId)) {
-                List<String> controllerIdList = idMap.get(deviceId);
-                if (!existByControllerId(controllerIdList, controllerId)) {
-                    controllerIdList.add(controllerId);
-                    idMap.put(deviceId, controllerIdList);
+            Map<String, List<ControlUnit>> deviceControlUnitMap = deviceControllerUserDocument.getDeviceIdControlUnit();
+            if (deviceControlUnitMap.containsKey(deviceId)) {
+                List<ControlUnit> controlUnitList = deviceControlUnitMap.get(deviceId);
+                if (!existByControlUnit(controlUnitList, controlUnitDoc)) {
+                    controlUnitList.add(controlUnitDTOMapper.apply(controlUnitDoc));
+                    deviceControlUnitMap.put(deviceId, controlUnitList);
                 }
             } else {
-                idMap.put(deviceId, List.of(controllerId));
+                deviceControlUnitMap.put(deviceId, List.of(controlUnitDTOMapper.apply(controlUnitDoc)));
             }
-            deviceControllerUserDocument.setDeviceIdControlUnitIds(idMap);
+            deviceControllerUserDocument.setDeviceIdControlUnit(deviceControlUnitMap);
             deviceControllerUserRepository.save(deviceControllerUserDocument);
         }, () -> {
-            Map<String, List<String>> newIdMap = new HashMap<>();
-            newIdMap.put(deviceId, List.of(controllerId));
+            Map<String, List<ControlUnit>> newMap = new HashMap<>();
+            newMap.put(deviceId, List.of(controlUnitDTOMapper.apply(controlUnitDoc)));
             var deviceControllerUserDocument = DeviceControllerUserDocument.builder()
                 .userId(userId)
-                .deviceIdControlUnitIds(newIdMap)
+                .deviceIdControlUnit(newMap)
                 .build();
             deviceControllerUserRepository.save(deviceControllerUserDocument);
         });
@@ -78,10 +80,10 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
         );
     }
 
-    boolean existByControllerId(List<String> controllerIdList, String id) {
-        if (controllerIdList.size() > 0) {
-            for (String idItem : controllerIdList) {
-                if (idItem.equals(id)) {
+    boolean existByControlUnit(List<ControlUnit> controlUnitList, ControlUnitDocument controlUnit) {
+        if (controlUnitList.size() > 0) {
+            for (ControlUnit item : controlUnitList) {
+                if (item.getId().equals(controlUnit.getId())) {
                     return true;
                 }
             }
@@ -119,13 +121,13 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
         Date time = new Date(System.currentTimeMillis());
         sendDataToUser(data, time);
 
+        var controlUnit = controlUnitRepository.findById(data.getControlUnitId())
+            .orElseThrow(
+                () -> new NotFoundCustomException("Control parameter not found with id " + data.getControlUnitId())
+            );
         Optional<UpdateWaterLevelDocument> updateWaterLevelDocumentOtp = updateWaterLevelRepository
             .findByDeviceId(data.getDeviceId());
         updateWaterLevelDocumentOtp.ifPresentOrElse((document) -> {
-            var controlUnit = controlUnitRepository.findById(data.getControlUnitId())
-                .orElseThrow(
-                    () -> new NotFoundCustomException("Control parameter not found with id " + data.getControlUnitId())
-                );
             document.setValue(data.getValue());
             document.setTime(time);
             document.setDeviceId(data.getDeviceId());
@@ -133,7 +135,12 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
                 new ControlParameter(controlUnit.getKp(), controlUnit.getSetpoint())
             );
             updateWaterLevelRepository.save(document);
-        }, () -> waterLevelMeasurementHelperService.createFirstWaterLevelUpdate(data));
+        }, () -> waterLevelMeasurementHelperService.createFirstWaterLevelUpdate(
+            data.getValue(),
+            time,
+            data.getDeviceId(),
+            new ControlParameter(controlUnit.getKp(), controlUnit.getSetpoint())
+        ));
 
         XControlDocument sigNalControlDoc = xControlRepository.findByDeviceId(data.getDeviceId())
             .orElseThrow(() -> new NotFoundCustomException("Not found x-control with id " + data.getDeviceId()));

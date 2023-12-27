@@ -2,8 +2,7 @@ package com.nvt.iot.service.impl;
 
 import com.nvt.iot.document.UpdateWaterLevelDocument;
 import com.nvt.iot.document.WaterLevelStoreDocument;
-import com.nvt.iot.document.XControlDocument;
-import com.nvt.iot.model.DataFromDevice;
+import com.nvt.iot.model.ControlParameter;
 import com.nvt.iot.model.WaterLevelData;
 import com.nvt.iot.repository.UpdateWaterLevelRepository;
 import com.nvt.iot.repository.WaterLevelStoreRepository;
@@ -23,15 +22,6 @@ public class WaterLevelMeasurementHelperServiceImp implements WaterLevelMeasurem
     private final WaterLevelStoreRepository waterLevelStoreRepository;
 
     @Override
-    public void createFirstXControl(String deviceId) {
-        var XControlDoc = XControlDocument.builder()
-            .deviceId(deviceId)
-            .value(null)
-            .build();
-        xControlRepository.save(XControlDoc);
-    }
-
-    @Override
     public void createFirstWaterLevelStore(
         String userId,
         String deviceId,
@@ -48,11 +38,12 @@ public class WaterLevelMeasurementHelperServiceImp implements WaterLevelMeasurem
     }
 
     @Override
-    public void createFirstWaterLevelUpdate(DataFromDevice data) {
+    public void createFirstWaterLevelUpdate(double value, Date time, String deviceId, ControlParameter controlParameter) {
         var updateWaterLevelDoc = UpdateWaterLevelDocument.builder()
-            .value(data.getValue())
-            .time(new Date(System.currentTimeMillis()))
-            .deviceId(data.getDeviceId())
+            .value(value)
+            .time(time)
+            .deviceId(deviceId)
+            .controlParameter(controlParameter)
             .build();
         updateWaterLevelRepository.save(updateWaterLevelDoc);
     }

@@ -131,8 +131,6 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
             }
             deleteConnectedUserOrDeviceBySessionId(ClientType.DEVICE, sessionId);
             sendListDeviceToAllUser();
-//            updateWaterLevelRepository.deleteByDeviceId(device.getId());
-//            xControlRepository.deleteByDeviceId(device.getId());
         }
     }
 

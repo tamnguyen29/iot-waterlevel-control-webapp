@@ -12,4 +12,6 @@ import lombok.NoArgsConstructor;
 public class ControlUnit {
     private String id;
     private String name;
+    private double kp;
+    private double setpoint;
 }
