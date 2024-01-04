@@ -7,7 +7,10 @@ import com.nvt.iot.model.Action;
 import com.nvt.iot.model.ClientType;
 import com.nvt.iot.model.Message;
 import com.nvt.iot.model.UsingStatus;
-import com.nvt.iot.repository.*;
+import com.nvt.iot.repository.ConnectedDeviceRepository;
+import com.nvt.iot.repository.ConnectedUserRepository;
+import com.nvt.iot.repository.DeviceRepository;
+import com.nvt.iot.repository.UserRepository;
 import com.nvt.iot.service.WebsocketHandleEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,31 +24,26 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 
 import java.util.Date;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class WebsocketEventHandler implements WebsocketHandleEventService {
+public class WebsocketEventHandler {
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ConnectedUserRepository connectedUserRepository;
     private final ConnectedDeviceRepository connectedDeviceRepository;
     private final UserRepository userRepository;
     private final DeviceRepository deviceRepository;
-    private final UpdateWaterLevelRepository updateWaterLevelRepository;
-    private final XControlRepository xControlRepository;
     @Value("${websocket.request.handshake.parameter.client-id}")
     private String CLIENT_ID;
     @Value("${websocket.request.handshake.parameter.client-type}")
     private String CLIENT_TYPE;
-    @Value("${websocket.room.common}")
-    private String CONNECTED_CLIENTS_ROOM;
-    @Value(("${websocket.room.private-device}"))
-    private String DEVICE_PRIVATE_ROOM;
+
     @Value(("${websocket.room.private-user}"))
     private String USER_PRIVATE_ROOM;
+    private final WebsocketHandleEventService websocketHandleEventService;
 
     @EventListener
     public void handleSessionConnectEvent(SessionConnectEvent connectEvent) {
@@ -67,7 +65,9 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
                 .orElseThrow(() -> new WebsocketResourcesNotFoundException("Not found user id: " + id, id));
             var connectedUser = ConnectedUserDocument.builder()
                 .id(id)
+                .email(user.getEmail())
                 .name(user.getFullName())
+                .role(user.getRole().toString())
                 .sessionId(accessor.getSessionId())
                 .onlineAt(time)
                 .build();
@@ -84,19 +84,6 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
                 .connectedAt(time)
                 .build();
             connectedDeviceRepository.save(connectedDevice);
-//            if (!updateWaterLevelRepository.existsByDeviceId(device.getId())) {
-//                var updateDataDoc = UpdateWaterLevelDocument
-//                    .builder()
-//                    .deviceId(device.getId())
-//                    .build();
-//                updateWaterLevelRepository.save(updateDataDoc);
-//            }
-//            if (!xControlRepository.existsByDeviceId(device.getId())) {
-//                var xControlDoc = XControlDocument.builder()
-//                    .deviceId(device.getId())
-//                    .build();
-//                xControlRepository.save(xControlDoc);
-//            }
         }
     }
 
@@ -108,29 +95,37 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
         ClientType client = checkIsUserOrDeviceBySessionId(sessionId);
 
         if (client.equals(ClientType.USER)) {
-            ConnectedUserDocument connectedUserDocument = connectedUserRepository.findBySessionId(sessionId);
-            if (connectedUserDocument != null) {
-                var device = connectedDeviceRepository.findByCurrentUsingUserId(
-                    connectedUserDocument.getId()
-                );
-                if (device != null) {
-                    device.setUsingStatus(UsingStatus.AVAILABLE);
-                    device.setCurrentUsingUser(null);
-                    sendUserInfoToSpecificDevice(connectedUserDocument.getId(), device.getId());
-                    connectedDeviceRepository.save(device);
-                    sendListDeviceToAllUser();
-                }
-                deleteConnectedUserOrDeviceBySessionId(ClientType.USER, sessionId);
-                sendListUserToAllUser();
-            }
+            connectedUserRepository.findBySessionId(sessionId)
+                .ifPresent((connectedUserDocument -> {
+                    connectedDeviceRepository.findByCurrentUsingUserId(
+                        connectedUserDocument.getId()
+                    ).ifPresent((deviceDocument -> {
+                        deviceDocument.setUsingStatus(UsingStatus.AVAILABLE);
+                        deviceDocument.setCurrentUsingUser(null);
+                        connectedDeviceRepository.save(deviceDocument);
+                        websocketHandleEventService.sendMessageToDevice(
+                            connectedUserDocument.getId(),
+                            deviceDocument.getId(),
+                            Action.USER_DISCONNECT_TO_DEVICE
+                        );
+                        websocketHandleEventService.sendListDeviceToAllUser();
+                    }));
+                    deleteConnectedUserOrDeviceBySessionId(ClientType.USER, sessionId);
+                    websocketHandleEventService.sendListUserToAllUser();
+                }));
         }
         if (client.equals(ClientType.DEVICE)) {
-            ConnectedDeviceDocument device = connectedDeviceRepository.findBySessionId(sessionId);
-            if (device.getCurrentUsingUser() != null) {
-                sendDisconnectMessageToCurrentUsingUser(device.getCurrentUsingUser().getId());
-            }
-            deleteConnectedUserOrDeviceBySessionId(ClientType.DEVICE, sessionId);
-            sendListDeviceToAllUser();
+            connectedDeviceRepository.findBySessionId(sessionId)
+                .ifPresent((deviceDocument -> {
+                    if (deviceDocument.getCurrentUsingUser() != null) {
+                        sendDisconnectMessageToCurrentUsingUser(
+                            deviceDocument.getCurrentUsingUser().getId()
+                        );
+                    }
+                    deleteConnectedUserOrDeviceBySessionId(ClientType.DEVICE, sessionId);
+                    websocketHandleEventService.sendListDeviceToAllUser();
+                }));
+
         }
     }
 
@@ -145,49 +140,12 @@ public class WebsocketEventHandler implements WebsocketHandleEventService {
     }
 
 
-    @Override
-    public List<?> getConnectedUsersOrDevicesList(ClientType type) {
-        return (type.equals(ClientType.USER)) ?
-            connectedUserRepository.findAll() : connectedDeviceRepository.findAll();
-    }
-
-
     private void deleteConnectedUserOrDeviceBySessionId(ClientType client, String sessionId) {
         if (client.equals(ClientType.USER)) {
             connectedUserRepository.deleteBySessionId(sessionId);
         } else {
             connectedDeviceRepository.deleteBySessionId(sessionId);
         }
-    }
-
-    @Override
-    public void sendListUserToAllUser() {
-        var message = Message.builder()
-            .action(Action.SEND_LIST_CONNECTED_USER)
-            .content(getConnectedUsersOrDevicesList(ClientType.USER))
-            .time(new Date(System.currentTimeMillis()))
-            .build();
-        simpMessagingTemplate.convertAndSend(CONNECTED_CLIENTS_ROOM, message);
-    }
-
-    @Override
-    public void sendListDeviceToAllUser() {
-        var message = Message.builder()
-            .action(Action.SEND_LIST_CONNECTED_DEVICE)
-            .content(getConnectedUsersOrDevicesList(ClientType.DEVICE))
-            .time(new Date(System.currentTimeMillis()))
-            .build();
-        simpMessagingTemplate.convertAndSend(CONNECTED_CLIENTS_ROOM, message);
-    }
-
-    @Override
-    public void sendUserInfoToSpecificDevice(String userId, String deviceName) {
-        var message = Message.builder()
-            .action(Action.USER_DISCONNECT_TO_DEVICE)
-            .content(userId)
-            .time(new Date(System.currentTimeMillis()))
-            .build();
-        simpMessagingTemplate.convertAndSendToUser(deviceName, DEVICE_PRIVATE_ROOM, message);
     }
 
     private void sendDisconnectMessageToCurrentUsingUser(String userId) {

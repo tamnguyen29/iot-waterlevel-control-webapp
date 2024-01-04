@@ -8,10 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -23,6 +20,7 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class AuthenticationController {
     private final AuthenticationService authenticationService;
+
     @PostMapping("/register")
     public ResponseEntity<?> register(
         @RequestBody @Valid RegisterRequest registerRequest,
@@ -56,4 +54,15 @@ public class AuthenticationController {
     ) throws IOException {
         authenticationService.refreshToken(request, response);
     }
+
+    @PostMapping("/logout/{userId}")
+    public ResponseEntity<?> logout(@PathVariable String userId) {
+        authenticationService.logout(userId);
+        var response = BaseResponse.builder()
+            .statusCode(200)
+            .message("Logout success!")
+            .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
 }

@@ -112,6 +112,11 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
     }
 
+    @Override
+    public long getTotalAmount() {
+        return userRepository.count();
+    }
+
     private void validateUserIdFormat(String id) {
         if (id == null || id.trim().isEmpty()) {
             throw new ValidationCustomException("Invalid user id: " + id);

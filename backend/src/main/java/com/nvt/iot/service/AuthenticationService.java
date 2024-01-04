@@ -12,6 +12,10 @@ import java.io.IOException;
 
 public interface AuthenticationService {
     AuthenticationResponse authenticate(AuthenticationRequest authenticationRequest, BindingResult bindingResult);
+
     RegisterResponse register(RegisterRequest registerRequest, BindingResult bindingResult);
+
     void refreshToken(HttpServletRequest request, HttpServletResponse response) throws IOException;
+
+    void logout(String userId);
 }

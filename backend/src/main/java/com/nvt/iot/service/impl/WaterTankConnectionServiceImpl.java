@@ -5,11 +5,15 @@ import com.nvt.iot.document.ConnectedUserDocument;
 import com.nvt.iot.exception.DeviceNotAvailableException;
 import com.nvt.iot.exception.NotFoundCustomException;
 import com.nvt.iot.exception.ValidationCustomException;
-import com.nvt.iot.model.*;
+import com.nvt.iot.model.Action;
+import com.nvt.iot.model.ClientType;
+import com.nvt.iot.model.CurrentUsingUser;
+import com.nvt.iot.model.UsingStatus;
 import com.nvt.iot.payload.response.ConnectDeviceResponse;
 import com.nvt.iot.repository.ConnectedDeviceRepository;
 import com.nvt.iot.repository.ConnectedUserRepository;
 import com.nvt.iot.service.WaterTankConnectionService;
+import com.nvt.iot.service.WebsocketHandleEventService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -17,7 +21,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -27,6 +30,7 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
     private final ConnectedUserRepository connectedUserRepository;
     private final ConnectedDeviceRepository connectedDeviceRepository;
     private final SimpMessagingTemplate simpMessagingTemplate;
+    private final WebsocketHandleEventService websocketHandleEventService;
     @Value("${websocket.request.handshake.parameter.client-id}")
     private String CLIENT_ID;
     @Value("${websocket.request.handshake.parameter.client-type}")
@@ -47,10 +51,10 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
             ClientType clientType = (ClientType) attributes.get(CLIENT_TYPE);
 
             if (clientType.equals(ClientType.USER)) {
-                sendListUserToAllUser();
-                sendListDeviceToSpecificUser(id);
+                websocketHandleEventService.sendListUserToAllUser();
+                websocketHandleEventService.sendListDeviceToSpecificUser(id);
             } else if (clientType.equals(ClientType.DEVICE)) {
-                sendListDeviceToAllUser();
+                websocketHandleEventService.sendListDeviceToAllUser();
             }
         }
     }
@@ -78,14 +82,14 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
             connectedDevice.setCurrentUsingUser(currentUsingUser);
             connectedDeviceRepository.save(connectedDevice);
 
-            sendListDeviceToAllUser();
-            sendUserInfoToSpecificDevice(userId, deviceId);
         } else {
             if (!connectedDevice.getCurrentUsingUser().getId().equals(userId)) {
                 throw new DeviceNotAvailableException("Device already used by "
                     + connectedDevice.getCurrentUsingUser().getName());
             }
         }
+        websocketHandleEventService.sendMessageToDevice(userId, deviceId, Action.USER_CONNECT_TO_DEVICE);
+        websocketHandleEventService.sendListDeviceToAllUser();
         return ConnectDeviceResponse.builder()
             .device(connectedDevice)
             .connectDeviceTime(new Date(System.currentTimeMillis()))
@@ -108,75 +112,9 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
             deviceDocument.setCurrentUsingUser(null);
             connectedDeviceRepository.save(deviceDocument);
 
-            sendDisconnectMessageToSpecificDevice(deviceId, userId);
-            sendListDeviceToAllUser();
+            websocketHandleEventService.sendMessageToDevice(userId, deviceId, Action.USER_DISCONNECT_TO_DEVICE);
+            websocketHandleEventService.sendListDeviceToAllUser();
         });
-    }
-
-    @Override
-    public void sendListUserToAllUser() {
-        var message = Message.builder()
-            .sender("SERVER")
-            .action(Action.SEND_LIST_CONNECTED_USER)
-            .content(getConnectedUsersOrDevicesList(ClientType.USER))
-            .time(new Date(System.currentTimeMillis()))
-            .receiver("ALL USERS")
-            .build();
-        simpMessagingTemplate.convertAndSend(CONNECTED_CLIENTS_ROOM, message);
-    }
-
-    @Override
-    public void sendListDeviceToAllUser() {
-        var message = Message.builder()
-            .sender("SERVER")
-            .action(Action.SEND_LIST_CONNECTED_DEVICE)
-            .content(getConnectedUsersOrDevicesList(ClientType.DEVICE))
-            .time(new Date(System.currentTimeMillis()))
-            .receiver("ALL USERS")
-            .build();
-        simpMessagingTemplate.convertAndSend(CONNECTED_CLIENTS_ROOM, message);
-    }
-
-    @Override
-    public List<?> getConnectedUsersOrDevicesList(ClientType type) {
-        return type.equals(ClientType.USER) ?
-            connectedUserRepository.findAll() : connectedDeviceRepository.findAll();
-    }
-
-    private void sendListDeviceToSpecificUser(String userName) {
-        var messageToThisUser = Message.builder()
-            .sender("SERVER")
-            .action(Action.SEND_LIST_CONNECTED_DEVICE)
-            .content(getConnectedUsersOrDevicesList(ClientType.DEVICE))
-            .time(new Date(System.currentTimeMillis()))
-            .receiver(userName)
-            .build();
-        simpMessagingTemplate.convertAndSendToUser(userName,
-            USER_PRIVATE_ROOM,
-            messageToThisUser
-        );
-    }
-
-    @Override
-    public void sendUserInfoToSpecificDevice(String userId, String deviceName) {
-        var message = Message.builder()
-            .sender(userId)
-            .action(Action.USER_CONNECT_TO_DEVICE)
-            .content(userId)
-            .time(new Date(System.currentTimeMillis()))
-            .receiver(deviceName)
-            .build();
-        simpMessagingTemplate.convertAndSendToUser(deviceName, DEVICE_PRIVATE_ROOM, message);
-    }
-
-    private void sendDisconnectMessageToSpecificDevice(String deviceId, String userName) {
-        var message = Message.builder()
-            .sender(String.format("USER[%s]", userName))
-            .action(Action.USER_DISCONNECT_TO_DEVICE)
-            .content(userName)
-            .time(new Date(System.currentTimeMillis()))
-            .build();
-        simpMessagingTemplate.convertAndSendToUser(deviceId, DEVICE_PRIVATE_ROOM, message);
     }
 
     void validateIsNotNullOrEmpty(String id) {

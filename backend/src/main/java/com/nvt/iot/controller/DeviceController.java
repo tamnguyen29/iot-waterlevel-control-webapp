@@ -3,6 +3,7 @@ package com.nvt.iot.controller;
 import com.nvt.iot.model.DataFromDevice;
 import com.nvt.iot.model.SignalControl;
 import com.nvt.iot.payload.request.DeviceRequest;
+import com.nvt.iot.payload.request.PumpOutRequest;
 import com.nvt.iot.payload.response.BaseResponse;
 import com.nvt.iot.service.DeviceService;
 import com.nvt.iot.service.WaterTankConnectionService;
@@ -105,6 +106,19 @@ public class DeviceController {
         var response = BaseResponse.builder()
             .statusCode(200)
             .message("Stop connect successfully!")
+            .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/pump-out")
+    public ResponseEntity<?> pumpOut(
+        @Valid @RequestBody PumpOutRequest pumpOutRequest,
+        BindingResult error
+    ) {
+        waterTankOperationService.sendPumpOutSignal(pumpOutRequest, error);
+        var response = BaseResponse.builder()
+            .statusCode(200)
+            .message("Send pump out signal successfully!")
             .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

@@ -16,6 +16,7 @@ import javax.validation.Valid;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+
     @GetMapping
     public ResponseEntity<?> getAllUsers(
         @RequestParam(defaultValue = "0") Integer pageNo,
@@ -72,6 +73,16 @@ public class UserController {
         var response = BaseResponse.builder()
             .statusCode(200)
             .message("Update successfully!")
+            .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/amount")
+    public ResponseEntity<?> getAmountOfUsers() {
+        var response = BaseResponse.builder()
+            .message("Get amount of user successfully!")
+            .statusCode(200)
+            .data(userService.getTotalAmount())
             .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

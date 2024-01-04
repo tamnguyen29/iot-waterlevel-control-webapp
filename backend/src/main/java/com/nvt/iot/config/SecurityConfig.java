@@ -2,6 +2,7 @@ package com.nvt.iot.config;
 
 import com.nvt.iot.filter.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -20,11 +21,16 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    @Value("${application.allow.origin}")
+    private String ALLOW_ORIGIN;
+    @Value("${application.allow.local-origin}")
+    private String LOCAL_ALLOW_ORIGIN;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.csrf().disable()
-            .cors().configurationSource(corsConfigurationSource())
+            .cors()
+            .configurationSource(corsConfigurationSource())
             .and()
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
@@ -45,10 +51,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://127.0.0.1:5173", "http://192.168.1.6:3000"));
+        configuration.setAllowedOrigins(List.of(ALLOW_ORIGIN, LOCAL_ALLOW_ORIGIN));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
         configuration.setAllowCredentials(true);
-        configuration.setAllowedHeaders(List.of("Authorization", "content-type", "connection"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "connection"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

@@ -20,8 +20,12 @@ public class ConnectedUserDocument {
     private String id;
     @Field(name = "session_id")
     private String sessionId;
+    @Field(name = "email")
+    private String email;
     @Field("name")
     private String name;
+    @Field(name = "role")
+    private String role;
     @Field(name = "online_at")
     private Date onlineAt;
 }

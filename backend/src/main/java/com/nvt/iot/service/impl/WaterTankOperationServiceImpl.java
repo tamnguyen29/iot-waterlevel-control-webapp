@@ -3,8 +3,10 @@ package com.nvt.iot.service.impl;
 import com.nvt.iot.document.*;
 import com.nvt.iot.exception.InvalidProcessValueException;
 import com.nvt.iot.exception.NotFoundCustomException;
+import com.nvt.iot.exception.ValidationCustomException;
 import com.nvt.iot.mapper.ControlUnitDTOMapper;
 import com.nvt.iot.model.*;
+import com.nvt.iot.payload.request.PumpOutRequest;
 import com.nvt.iot.repository.*;
 import com.nvt.iot.service.WaterLevelMeasurementHelperService;
 import com.nvt.iot.service.WaterTankOperationService;
@@ -16,6 +18,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.BindingResult;
 
 import java.util.*;
 
@@ -142,33 +145,33 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
             new ControlParameter(controlUnit.getKp(), controlUnit.getSetpoint())
         ));
 
+        if (!waterLevelStoreRepository.existsByUserIdAndDeviceIdAndControllerId(
+            data.getUserId(),
+            data.getDeviceId(),
+            data.getControlUnitId()
+        )) {
+            waterLevelMeasurementHelperService.createFirstWaterLevelStore(
+                data.getUserId(),
+                data.getDeviceId(),
+                data.getControlUnitId(),
+                List.of(new WaterLevelData(data.getValue(), time))
+            );
+
+        } else {
+            addWaterLevelData(
+                data.getUserId(),
+                data.getControlUnitId(),
+                data.getDeviceId(),
+                new WaterLevelData(data.getValue(), time)
+            );
+
+        }
         XControlDocument sigNalControlDoc = xControlRepository.findByDeviceId(data.getDeviceId())
             .orElseThrow(() -> new NotFoundCustomException("Not found x-control with id " + data.getDeviceId()));
         if (sigNalControlDoc.getValue() == null || sigNalControlDoc.getValue() == -1) {
             throw new InvalidProcessValueException("Cannot get x-control value");
         } else {
             //Save data to WaterLevelStore
-            if (!waterLevelStoreRepository.existsByUserIdAndDeviceIdAndControllerId(
-                data.getUserId(),
-                data.getDeviceId(),
-                data.getControlUnitId()
-            )) {
-                waterLevelMeasurementHelperService.createFirstWaterLevelStore(
-                    data.getUserId(),
-                    data.getDeviceId(),
-                    data.getControlUnitId(),
-                    List.of(new WaterLevelData(data.getValue(), time))
-                );
-
-            } else {
-                addWaterLevelData(
-                    data.getUserId(),
-                    data.getControlUnitId(),
-                    data.getDeviceId(),
-                    new WaterLevelData(data.getValue(), time)
-                );
-
-            }
             ControlUnitDocument controlUnitDocument = controlUnitRepository.getControlUnitDocumentById(data.getControlUnitId());
             return SignalControl.builder()
                 .xControl(sigNalControlDoc.getValue())
@@ -206,6 +209,33 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
     public double sendFirstData(DataFromDevice data) {
         sendDataToUser(data, new Date(System.currentTimeMillis()));
         return -1;
+    }
+
+    @Override
+    public void sendPumpOutSignal(PumpOutRequest pumpOutRequest, BindingResult error) {
+        if (error.hasErrors()) {
+            throw new ValidationCustomException(error);
+        }
+        connectedDeviceRepository.findById(pumpOutRequest.getDeviceId())
+            .ifPresentOrElse((deviceDocument) -> {
+                CurrentUsingUser user = deviceDocument.getCurrentUsingUser();
+                if (user == null || !user.getId().equals(pumpOutRequest.getUserId())) {
+                    throw new NotFoundCustomException("Not found user is using device");
+                }
+                var message = Message.builder()
+                    .sender(pumpOutRequest.getUserId())
+                    .action(Action.SEND_PUMP_OUT_SIGNAL)
+                    .content(pumpOutRequest.getPercentage())
+                    .time(new Date(System.currentTimeMillis()))
+                    .build();
+                simpMessagingTemplate.convertAndSendToUser(
+                    pumpOutRequest.getDeviceId(),
+                    DEVICE_PRIVATE_ROOM,
+                    message
+                );
+            }, () -> {
+                throw new NotFoundCustomException("Not found connected device!");
+            });
     }
 }
 

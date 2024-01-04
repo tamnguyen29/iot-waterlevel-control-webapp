@@ -1,5 +1,6 @@
 package com.nvt.iot.service;
 
+import com.nvt.iot.model.Action;
 import com.nvt.iot.model.ClientType;
 
 import java.util.List;
@@ -9,7 +10,9 @@ public interface WebsocketHandleEventService {
 
     void sendListDeviceToAllUser();
 
-    List<?> getConnectedUsersOrDevicesList(ClientType type);
+    List<?> getConnectedClientList(ClientType type);
 
-    void sendUserInfoToSpecificDevice(String user, String deviceName);
+    void sendMessageToDevice(String userId, String deviceName, Action action);
+
+    void sendListDeviceToSpecificUser(String userId);
 }

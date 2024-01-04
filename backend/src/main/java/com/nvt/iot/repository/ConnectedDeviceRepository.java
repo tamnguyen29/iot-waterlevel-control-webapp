@@ -4,6 +4,8 @@ import com.nvt.iot.document.ConnectedDeviceDocument;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface ConnectedDeviceRepository extends MongoRepository<ConnectedDeviceDocument, String> {
     boolean existsBySessionId(String sessionId);
@@ -12,7 +14,7 @@ public interface ConnectedDeviceRepository extends MongoRepository<ConnectedDevi
 
     boolean existsByIdAndCurrentUsingUserId(String deviceId, String userId);
 
-    ConnectedDeviceDocument findByCurrentUsingUserId(String userId);
+    Optional<ConnectedDeviceDocument> findByCurrentUsingUserId(String userId);
 
-    ConnectedDeviceDocument findBySessionId(String sessionId);
+    Optional<ConnectedDeviceDocument> findBySessionId(String sessionId);
 }

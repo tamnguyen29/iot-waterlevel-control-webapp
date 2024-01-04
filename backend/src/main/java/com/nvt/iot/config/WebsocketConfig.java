@@ -3,6 +3,7 @@ package com.nvt.iot.config;
 import com.nvt.iot.handler.CustomHandShakeHandler;
 import com.nvt.iot.interceptor.CustomHandShakeInterceptor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -18,6 +19,10 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebsocketConfig implements WebSocketMessageBrokerConfigurer {
     private final CustomHandShakeInterceptor customHandShakeInterceptor;
     private final CustomHandShakeHandler customHandShakeHandler;
+    @Value("${application.allow.origin}")
+    private String ALLOW_ORIGIN;
+    @Value("${application.allow.local-origin}")
+    private String LOCAL_ALLOW_ORIGIN;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -31,7 +36,7 @@ public class WebsocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-            .setAllowedOrigins("http://127.0.0.1:5173", "http://localhost:3000")
+            .setAllowedOrigins(ALLOW_ORIGIN, LOCAL_ALLOW_ORIGIN)
             .addInterceptors(customHandShakeInterceptor)
             .setHandshakeHandler(customHandShakeHandler)
             .withSockJS();

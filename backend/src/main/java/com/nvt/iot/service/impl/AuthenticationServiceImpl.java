@@ -6,14 +6,19 @@ import com.nvt.iot.exception.AuthenticationCustomException;
 import com.nvt.iot.exception.EmailAlreadyExistsException;
 import com.nvt.iot.exception.ValidationCustomException;
 import com.nvt.iot.mapper.UserDTOMapper;
+import com.nvt.iot.model.Action;
 import com.nvt.iot.model.Role;
+import com.nvt.iot.model.UsingStatus;
 import com.nvt.iot.payload.request.AuthenticationRequest;
 import com.nvt.iot.payload.request.RegisterRequest;
 import com.nvt.iot.payload.response.AuthenticationResponse;
 import com.nvt.iot.payload.response.RegisterResponse;
+import com.nvt.iot.repository.ConnectedDeviceRepository;
+import com.nvt.iot.repository.ConnectedUserRepository;
 import com.nvt.iot.repository.UserRepository;
 import com.nvt.iot.service.AuthenticationService;
 import com.nvt.iot.service.JwtService;
+import com.nvt.iot.service.WebsocketHandleEventService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -37,6 +42,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final UserDTOMapper userDTOMapper;
+    private final ConnectedUserRepository connectedUserRepository;
+    private final ConnectedDeviceRepository connectedDeviceRepository;
+    private final WebsocketHandleEventService websocketHandleEventService;
 
     @Override
     public RegisterResponse register(RegisterRequest registerRequest, BindingResult bindingResult) {
@@ -117,5 +125,27 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 new ObjectMapper().writeValue(response.getOutputStream(), authResponse);
             }
         }
+    }
+
+    @Override
+    public void logout(String userId) {
+        connectedUserRepository.findById(userId)
+            .ifPresent((connectedUserDocument -> {
+                connectedUserRepository.deleteById(userId);
+                connectedDeviceRepository.findByCurrentUsingUserId(
+                    connectedUserDocument.getId()
+                ).ifPresent((deviceDocument -> {
+                    deviceDocument.setUsingStatus(UsingStatus.AVAILABLE);
+                    deviceDocument.setCurrentUsingUser(null);
+                    connectedDeviceRepository.save(deviceDocument);
+                    websocketHandleEventService.sendMessageToDevice(
+                        userId,
+                        deviceDocument.getId(),
+                        Action.USER_DISCONNECT_TO_DEVICE
+                    );
+                    websocketHandleEventService.sendListDeviceToAllUser();
+                }));
+                websocketHandleEventService.sendListUserToAllUser();
+            }));
     }
 }
