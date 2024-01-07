@@ -28,4 +28,6 @@ public class ConnectedUserDocument {
     private String role;
     @Field(name = "online_at")
     private Date onlineAt;
+    @Field(name = "avatar")
+    private String avatar;
 }

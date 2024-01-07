@@ -1,6 +1,6 @@
 package com.nvt.iot.controller;
 
-import com.nvt.iot.payload.request.UserRequest;
+import com.nvt.iot.payload.request.UserUpdateInformationRequest;
 import com.nvt.iot.payload.response.BaseResponse;
 import com.nvt.iot.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -40,19 +40,6 @@ public class UserController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PostMapping("/add")
-    public ResponseEntity<?> addYUser(
-        @RequestBody @Valid UserRequest userRequest,
-        BindingResult bindingResult
-    ) {
-        userService.addUser(userRequest, bindingResult);
-        var response = BaseResponse.builder()
-            .statusCode(201)
-            .message("Add user successfully!")
-            .build();
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
-    }
-
     @DeleteMapping(value = "/delete/{id}")
     public ResponseEntity<?> deleteUser(@PathVariable String id) {
         userService.deleteUser(id);
@@ -63,15 +50,15 @@ public class UserController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PutMapping("/update/{id}")
+    @PutMapping("/update-info/{id}")
     public ResponseEntity<?> updateUser(
         @PathVariable String id,
-        @RequestBody @Valid UserRequest userRequest,
+        @RequestBody @Valid UserUpdateInformationRequest userRequest,
         BindingResult bindingResult
     ) {
-        userService.updateUser(id, userRequest, bindingResult);
         var response = BaseResponse.builder()
             .statusCode(200)
+            .data(userService.updateInfoUser(id, userRequest, bindingResult))
             .message("Update successfully!")
             .build();
         return new ResponseEntity<>(response, HttpStatus.OK);

@@ -9,6 +9,7 @@ import org.hibernate.validator.constraints.Length;
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Pattern;
 
 @Data
 @AllArgsConstructor
@@ -31,4 +32,9 @@ public class RegisterRequest {
     @NotEmpty(message = "Password can not be empty!")
     @Length(min = 6, message = "Password must have at least 6 characters!")
     private String password;
+
+    @NotNull(message = "Phone number can not be null")
+    @NotEmpty(message = "Phone number can not be empty!")
+    @Pattern(regexp = "(\\\\+61|0)[0-9]{9}", message = "Must be valid phone number")
+    private String phoneNumber;
 }

@@ -1,6 +1,5 @@
 package com.nvt.iot.payload.request;
 
-import com.nvt.iot.model.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,7 +15,7 @@ import javax.validation.constraints.Pattern;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserRequest {
+public class UserUpdateInformationRequest {
     @NotNull(message = "User name can not be null!")
     @NotEmpty(message = "User name can not be empty!")
     private String fullName;
@@ -29,11 +28,14 @@ public class UserRequest {
     )
     private String email;
 
-    @NotNull(message = "Password can not be null!")
-    @NotEmpty(message = "Password can not be empty!")
+    @NotNull(message = "Phone number can not be null!")
+    @NotEmpty(message = "Phone number can not be empty!")
     @Length(min = 6, message = "Password must have at least 6 characters!")
-    private String password;
+    @Length(min = 6, message = "Password must have at least 6 characters!")
+    @Pattern(regexp = "(\\\\+61|0)[0-9]{9}", message = "Phone number must in right format")
+    private String phoneNumber;
 
-    @Pattern(regexp = "ROLE_USER|ROLE_ADMIN", message = "Invalid role name!")
-    private String role;
+    @NotNull(message = "Avatar url can not null!")
+    @NotEmpty(message = "Avatar url can not be empty!")
+    private String avatar;
 }

@@ -69,6 +69,7 @@ public class WebsocketEventHandler {
                 .name(user.getFullName())
                 .role(user.getRole().toString())
                 .sessionId(accessor.getSessionId())
+                .avatar(user.getAvatar())
                 .onlineAt(time)
                 .build();
             connectedUserRepository.save(connectedUser);

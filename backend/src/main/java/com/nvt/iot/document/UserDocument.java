@@ -36,6 +36,10 @@ public class UserDocument implements UserDetails {
     private Date createAt;
     @Field(name = "updated_at")
     private Date updatedAt;
+    @Field(name = "avatar")
+    private String avatar;
+    @Field(name = "phone_number")
+    private String phoneNumber;
     @Field(name = "role")
     private Role role;
 

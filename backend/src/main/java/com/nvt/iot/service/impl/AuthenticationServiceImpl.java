@@ -45,6 +45,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final ConnectedUserRepository connectedUserRepository;
     private final ConnectedDeviceRepository connectedDeviceRepository;
     private final WebsocketHandleEventService websocketHandleEventService;
+    private static final String DEFAULT_AVATAR = "DEFAULT";
 
     @Override
     public RegisterResponse register(RegisterRequest registerRequest, BindingResult bindingResult) {
@@ -62,6 +63,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             .fullName(registerRequest.getFullName())
             .password(passwordEncoder.encode(registerRequest.getPassword()))
             .role(Role.ROLE_USER)
+            .avatar(DEFAULT_AVATAR)
+            .phoneNumber(registerRequest.getPhoneNumber())
             .createAt(new Date(System.currentTimeMillis()))
             .updatedAt(new Date(System.currentTimeMillis()))
             .build();

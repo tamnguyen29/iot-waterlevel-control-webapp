@@ -2,11 +2,11 @@ package com.nvt.iot.service.impl;
 
 import com.nvt.iot.document.UserDocument;
 import com.nvt.iot.dto.UserDTO;
+import com.nvt.iot.exception.EmailAlreadyExistsException;
 import com.nvt.iot.exception.NotFoundCustomException;
 import com.nvt.iot.exception.ValidationCustomException;
 import com.nvt.iot.mapper.UserDTOMapper;
-import com.nvt.iot.model.Role;
-import com.nvt.iot.payload.request.UserRequest;
+import com.nvt.iot.payload.request.UserUpdateInformationRequest;
 import com.nvt.iot.payload.response.UsersResponse;
 import com.nvt.iot.repository.ControlUnitRepository;
 import com.nvt.iot.repository.UserRepository;
@@ -16,13 +16,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.BindingResult;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,7 +31,6 @@ public class UserServiceImpl implements UserService {
     private final UserDTOMapper userDTOMapper;
     private final UserRepository userRepository;
     private final ControlUnitRepository controlUnitRepository;
-    private final PasswordEncoder passwordEncoder;
     private final WaterLevelStoreRepository waterLevelStoreRepository;
 
     @Override
@@ -51,24 +50,6 @@ public class UserServiceImpl implements UserService {
             .totalItems(pagedResult.getNumberOfElements())
             .totalPages(pagedResult.getTotalPages())
             .build();
-    }
-
-    @Override
-    public void addUser(UserRequest userRequest, BindingResult bindingResult) {
-        if (bindingResult.hasErrors()) {
-            throw new ValidationCustomException(bindingResult);
-        }
-
-        var userDoc = UserDocument.builder()
-            .email(userRequest.getEmail())
-            .fullName(userRequest.getFullName())
-            .createAt(new Date(System.currentTimeMillis()))
-            .updatedAt(new Date(System.currentTimeMillis()))
-            .password(passwordEncoder.encode(userRequest.getPassword()))
-            .role(userRequest.getRole().equals("ROLE_USER") ? Role.ROLE_USER : Role.ROLE_ADMIN)
-            .build();
-
-        userRepository.save(userDoc);
     }
 
     @Override
@@ -94,22 +75,26 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void updateUser(String id, UserRequest userRequest, BindingResult bindingResult) {
+    public UserDTO updateInfoUser(String id, UserUpdateInformationRequest userRequest, BindingResult bindingResult) {
         validateUserIdFormat(id);
         if (bindingResult.hasErrors()) {
             throw new ValidationCustomException(bindingResult);
         }
 
-        UserDocument user = userRepository.findById(id)
+        if (emailExistsForOtherUser(id, userRequest.getEmail())) {
+            throw new EmailAlreadyExistsException("Email already exist!");
+        }
+
+        UserDocument userDocument = userRepository.findById(id)
             .orElseThrow(() -> new NotFoundCustomException("Not found user with id: " + id));
 
-        user.setFullName(userRequest.getFullName());
-        user.setEmail(userRequest.getEmail());
-        user.setPassword(passwordEncoder.encode(userRequest.getPassword()));
-        user.setUpdatedAt(new Date(System.currentTimeMillis()));
-        user.setRole(userRequest.getRole().equals("ROLE_USER") ? Role.ROLE_USER : Role.ROLE_ADMIN);
+        userDocument.setFullName(userRequest.getFullName());
+        userDocument.setEmail(userRequest.getEmail());
+        userDocument.setAvatar(userRequest.getAvatar());
+        userDocument.setUpdatedAt(new Date(System.currentTimeMillis()));
+        userRepository.save(userDocument);
 
-        userRepository.save(user);
+        return userDTOMapper.apply(userDocument);
     }
 
     @Override
@@ -121,5 +106,10 @@ public class UserServiceImpl implements UserService {
         if (id == null || id.trim().isEmpty()) {
             throw new ValidationCustomException("Invalid user id: " + id);
         }
+    }
+
+    private boolean emailExistsForOtherUser(String userId, String email) {
+        Optional<UserDocument> userWithSameEmail = userRepository.findByEmail(email);
+        return userWithSameEmail.isPresent() && !userWithSameEmail.get().getId().equals(userId);
     }
 }

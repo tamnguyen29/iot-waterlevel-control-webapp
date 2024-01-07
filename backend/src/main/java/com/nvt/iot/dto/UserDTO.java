@@ -16,6 +16,8 @@ public class UserDTO {
     private String id;
     private String fullName;
     private String email;
+    private String phoneNumber;
+    private String avatar;
     private Date createdAt;
     private Date updatedAt;
     private Role role;
