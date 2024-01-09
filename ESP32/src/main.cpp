@@ -11,7 +11,7 @@
 #define CLIENT_TYPE "DEVICE"
 
 /*==========================SERVER CONFIG==============================*/
-#define SERVER_HOST "192.168.1.7"
+#define SERVER_HOST "192.168.1.6"
 #define SERVER_PORT 8080
 #define WS_ENDPOINT "/ws/"
 /*==========================WEBSOCKET CONFIG==============================*/
@@ -26,7 +26,12 @@
 /*==========================ESP32 CONFIG==============================*/
 #define ECHO_PIN 18
 #define TRIG_PIN 19
-#define INTERVAL 500
+#define IN1 14
+#define IN2 27
+#define IN3 25
+#define IN4 26
+#define EN_A 12
+#define EN_B 13
 /*=====================================================================*/
 WebSocketsClient webSocketClient;
 HTTPClient http;
@@ -43,6 +48,8 @@ unsigned long currentMillis;
 String ACTION;
 double waterLevel;
 double setpoint;
+int pwm_Pumper;
+double x_control;
 
 /*==========================DECLARING FUNCTION==========================*/
 void wifiSetup();
@@ -105,10 +112,10 @@ void setCurrentControlUnitId(String controlUnitId)
   currentControlUnitId = controlUnitId;
 }
 
-String sendDataToUser(double waterLevel, String controlUnitId, String userId, bool isFirstSend)
+String sendDataToUser(String controlUnitId, String userId, bool isFirstSend)
 {
   DynamicJsonDocument doc(1024);
-  doc["value"] = waterLevel;
+  doc["value"] = getCurrentWaterLevelMeasurement();
   doc["controlUnitId"] = controlUnitId;
   doc["userId"] = userId;
   doc["deviceId"] = CLIENT_ID;
@@ -118,7 +125,7 @@ String sendDataToUser(double waterLevel, String controlUnitId, String userId, bo
   serializeJson(doc, json);
   Serial.println(json);
 
-  http.begin(wifiClient,"http://" + String(SERVER_HOST) + ":8080/api/device" + uri);
+  http.begin(wifiClient, "http://" + String(SERVER_HOST) + ":8080/api/device" + uri);
   http.addHeader("Content-Type", "application/json");
 
   int httpResponseCode = http.POST(json);
@@ -208,9 +215,22 @@ void sendHeartBeatMessage()
   message = "[\"SEND\\ndestination:/app/heart-beat\\n\\n{}\\u0000\"]";
   webSocketClient.sendTXT(message);
 }
+void controlWithSpeedMotor_OUT(int pwm)
+{
+  analogWrite(EN_B, pwm);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+
+void stopMotor_OUT()
+{
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+}
 
 void handleTextMessageReceived(String text)
 {
+
   String jsonStr = extractJsonStringFromMessage(text);
   jsonStr.replace("\\", "");
   Serial.println("Mess: " + jsonStr);
@@ -227,7 +247,7 @@ void handleTextMessageReceived(String text)
     notificationLedESP32();
     setCurrentUserId(jsonMessage["sender"].as<String>());
     Serial.println("Current USER Id: " + currentUserId);
-    sendDataToUser(getCurrentWaterLevelMeasurement(), currentControlUnitId, currentUserId, true);
+    sendDataToUser(currentControlUnitId, currentUserId, true);
     // Send to user connect successfully!
   }
   else if (ACTION.equals("USER_DISCONNECT_TO_DEVICE"))
@@ -249,6 +269,19 @@ void handleTextMessageReceived(String text)
   {
     Serial.println("STOP_MEASUREMENT");
     isAllowMeasured = false;
+  }
+  else if (ACTION.equals("SEND_PUMP_OUT_SIGNAL"))
+  {
+    int percentage = jsonMessage["content"].as<int>();
+    if (percentage == 0)
+    {
+      stopMotor_OUT();
+    }
+    else
+    {
+      int pwm = map(percentage, 0, 100, 0, 255);
+      controlWithSpeedMotor_OUT(pwm);
+    }
   }
 }
 
@@ -310,19 +343,66 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
 
 /*=====================================================================*/
 
+void stopMotor_IN()
+{
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+}
+
+
+void controlWithSpeedMotor_IN(int pwm)
+{
+  analogWrite(EN_A, pwm);
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+}
+
+void controlMotor_IN(String response)
+{
+  DynamicJsonDocument doc(512);
+  deserializeJson(doc, response);
+  JsonObject controlSignalObj = doc.as<JsonObject>();
+  x_control = controlSignalObj["xcontrol"];
+  setpoint = controlSignalObj["setpoint"];
+
+  pwm_Pumper = map(x_control, 0.03, 0.6 * setpoint, 125, 350);
+
+  Serial.print("X-control: ");
+  Serial.println(x_control);
+  Serial.print("Setpoint: ");
+  Serial.println(setpoint);
+  if (pwm_Pumper > 255)
+  {
+    pwm_Pumper = 255;
+  }
+  Serial.print("PWN PUMPER: ");
+  Serial.println(pwm_Pumper);
+  controlWithSpeedMotor_IN(pwm_Pumper);
+}
+
 void setup()
 {
   Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
   pinMode(TRIG_PIN, OUTPUT);
+  pinMode(EN_A, OUTPUT);
+  pinMode(EN_B, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
   wifiSetup();
 
   isAllowMeasured = false;
   previousMillis = 0;
   response = "NONE";
   setpoint = 0;
+  pwm_Pumper = 0;
+  x_control = 0;
 
+  stopMotor_IN();
+  stopMotor_OUT();
   setCurrentUserId("NONE");
   setCurrentControlUnitId("NONE");
   message = "";
@@ -337,14 +417,25 @@ void loop()
 {
   digitalWrite(LED_BUILTIN, webSocketClient.isConnected());
   webSocketClient.loop();
-
-  waterLevel = getCurrentWaterLevelMeasurement();
-  if (webSocketClient.isConnected() && isAllowMeasured)
+  if (webSocketClient.isConnected())
   {
-    response = sendDataToUser(waterLevel, currentControlUnitId, currentUserId, false);
-    if (!(response.equals("NONE") || response.equals("-1")))
+    if (isAllowMeasured)
     {
-      Serial.println("Response: " + response);
+      response = sendDataToUser(currentControlUnitId, currentUserId, false);
+      if (!(response.equals("NONE") || response.equals("-1")))
+      {
+        Serial.println("Response: " + response);
+        controlMotor_IN(response);
+      }
     }
+    else
+    {
+      stopMotor_IN();
+    }
+  }
+  else
+  {
+    stopMotor_IN();
+    stopMotor_OUT();
   }
 }

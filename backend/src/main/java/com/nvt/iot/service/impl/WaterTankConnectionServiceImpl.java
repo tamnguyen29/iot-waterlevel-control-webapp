@@ -5,10 +5,7 @@ import com.nvt.iot.document.ConnectedUserDocument;
 import com.nvt.iot.exception.DeviceNotAvailableException;
 import com.nvt.iot.exception.NotFoundCustomException;
 import com.nvt.iot.exception.ValidationCustomException;
-import com.nvt.iot.model.Action;
-import com.nvt.iot.model.ClientType;
-import com.nvt.iot.model.CurrentUsingUser;
-import com.nvt.iot.model.UsingStatus;
+import com.nvt.iot.model.*;
 import com.nvt.iot.payload.response.ConnectDeviceResponse;
 import com.nvt.iot.repository.ConnectedDeviceRepository;
 import com.nvt.iot.repository.ConnectedUserRepository;
@@ -17,7 +14,6 @@ import com.nvt.iot.service.WebsocketHandleEventService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -29,18 +25,11 @@ import java.util.Optional;
 public class WaterTankConnectionServiceImpl implements WaterTankConnectionService {
     private final ConnectedUserRepository connectedUserRepository;
     private final ConnectedDeviceRepository connectedDeviceRepository;
-    private final SimpMessagingTemplate simpMessagingTemplate;
     private final WebsocketHandleEventService websocketHandleEventService;
     @Value("${websocket.request.handshake.parameter.client-id}")
     private String CLIENT_ID;
     @Value("${websocket.request.handshake.parameter.client-type}")
     private String CLIENT_TYPE;
-    @Value("${websocket.room.common}")
-    private String CONNECTED_CLIENTS_ROOM;
-    @Value("${websocket.room.private-user}")
-    private String USER_PRIVATE_ROOM;
-    @Value("${websocket.room.private-device}")
-    private String DEVICE_PRIVATE_ROOM;
 
     @Override
     public void sendListMemberToEveryUserClient(SimpMessageHeaderAccessor headerAccessor) {
@@ -69,10 +58,11 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
                 () -> new NotFoundCustomException("Not found device with id " + deviceId)
             );
 
-        if (connectedDevice.getUsingStatus().equals(UsingStatus.AVAILABLE)) {
-            ConnectedUserDocument userDocument = connectedUserRepository.findById(userId).orElseThrow(
+        ConnectedUserDocument userDocument = connectedUserRepository.findById(userId)
+            .orElseThrow(
                 () -> new NotFoundCustomException("Can't not find user information!")
             );
+        if (connectedDevice.getUsingStatus().equals(UsingStatus.AVAILABLE)) {
             var currentUsingUser = CurrentUsingUser.builder()
                 .id(userDocument.getId())
                 .name(userDocument.getName())
@@ -81,7 +71,6 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
             connectedDevice.setUsingStatus(UsingStatus.UNAVAILABLE);
             connectedDevice.setCurrentUsingUser(currentUsingUser);
             connectedDeviceRepository.save(connectedDevice);
-
         } else {
             if (!connectedDevice.getCurrentUsingUser().getId().equals(userId)) {
                 throw new DeviceNotAvailableException("Device already used by "
@@ -90,6 +79,12 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
         }
         websocketHandleEventService.sendMessageToDevice(userId, deviceId, Action.USER_CONNECT_TO_DEVICE);
         websocketHandleEventService.sendListDeviceToAllUser();
+        var notification = Notification.builder()
+            .content(userDocument.getName() + " is connecting to " + connectedDevice.getName())
+            .notificationType(NotificationType.USING_DEVICE)
+            .isSeen(false)
+            .build();
+        websocketHandleEventService.sendNotificationExceptUser(userId, notification);
         return ConnectDeviceResponse.builder()
             .device(connectedDevice)
             .connectDeviceTime(new Date(System.currentTimeMillis()))
@@ -114,6 +109,12 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
 
             websocketHandleEventService.sendMessageToDevice(userId, deviceId, Action.USER_DISCONNECT_TO_DEVICE);
             websocketHandleEventService.sendListDeviceToAllUser();
+            var notification = Notification.builder()
+                .notificationType(NotificationType.DEVICE_FREE)
+                .isSeen(false)
+                .content(deviceDocument.getName() + " is available access now!")
+                .build();
+            websocketHandleEventService.sendNotificationExceptUser(userId, notification);
         });
     }
 

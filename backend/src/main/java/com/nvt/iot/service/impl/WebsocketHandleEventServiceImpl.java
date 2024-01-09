@@ -1,8 +1,10 @@
 package com.nvt.iot.service.impl;
 
+import com.nvt.iot.document.ConnectedUserDocument;
 import com.nvt.iot.model.Action;
 import com.nvt.iot.model.ClientType;
 import com.nvt.iot.model.Message;
+import com.nvt.iot.model.Notification;
 import com.nvt.iot.repository.ConnectedDeviceRepository;
 import com.nvt.iot.repository.ConnectedUserRepository;
 import com.nvt.iot.service.WebsocketHandleEventService;
@@ -79,4 +81,23 @@ public class WebsocketHandleEventServiceImpl implements WebsocketHandleEventServ
         );
     }
 
+    @Override
+    public void sendNotificationExceptUser(String exceptUserId, Notification notification) {
+        List<ConnectedUserDocument> onlineUserList = connectedUserRepository.findAll();
+        onlineUserList.forEach((connectedUser -> {
+            if (!connectedUser.getId().equals(exceptUserId)) {
+                var message = Message.builder()
+                    .sender("SERVER")
+                    .action(Action.NOTIFICATION)
+                    .time(new Date(System.currentTimeMillis()))
+                    .content(notification)
+                    .build();
+                simpMessagingTemplate.convertAndSendToUser(
+                    connectedUser.getId(),
+                    USER_PRIVATE_ROOM,
+                    message
+                );
+            }
+        }));
+    }
 }
