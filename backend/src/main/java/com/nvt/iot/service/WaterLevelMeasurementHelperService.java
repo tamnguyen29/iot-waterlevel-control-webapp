@@ -10,4 +10,6 @@ public interface WaterLevelMeasurementHelperService {
     void createFirstWaterLevelUpdate(double value, Date time, String deviceId, ControlParameter controlParameter);
 
     void createFirstWaterLevelStore(String userId, String deviceId, String controllerId, List<WaterLevelData> list);
+
+    void createFirstXControl(String deviceId);
 }

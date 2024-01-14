@@ -145,33 +145,34 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
             new ControlParameter(controlUnit.getKp(), controlUnit.getSetpoint())
         ));
 
-        if (!waterLevelStoreRepository.existsByUserIdAndDeviceIdAndControllerId(
-            data.getUserId(),
-            data.getDeviceId(),
-            data.getControlUnitId()
-        )) {
-            waterLevelMeasurementHelperService.createFirstWaterLevelStore(
-                data.getUserId(),
-                data.getDeviceId(),
-                data.getControlUnitId(),
-                List.of(new WaterLevelData(data.getValue(), time))
-            );
 
-        } else {
-            addWaterLevelData(
-                data.getUserId(),
-                data.getControlUnitId(),
-                data.getDeviceId(),
-                new WaterLevelData(data.getValue(), time)
-            );
-
-        }
         XControlDocument sigNalControlDoc = xControlRepository.findByDeviceId(data.getDeviceId())
             .orElseThrow(() -> new NotFoundCustomException("Not found x-control with id " + data.getDeviceId()));
         if (sigNalControlDoc.getValue() == null || sigNalControlDoc.getValue() == -1) {
             throw new InvalidProcessValueException("Cannot get x-control value");
         } else {
             //Save data to WaterLevelStore
+            if (!waterLevelStoreRepository.existsByUserIdAndDeviceIdAndControllerId(
+                data.getUserId(),
+                data.getDeviceId(),
+                data.getControlUnitId()
+            )) {
+                waterLevelMeasurementHelperService.createFirstWaterLevelStore(
+                    data.getUserId(),
+                    data.getDeviceId(),
+                    data.getControlUnitId(),
+                    List.of(new WaterLevelData(data.getValue(), time))
+                );
+
+            } else {
+                addWaterLevelData(
+                    data.getUserId(),
+                    data.getControlUnitId(),
+                    data.getDeviceId(),
+                    new WaterLevelData(data.getValue(), time)
+                );
+
+            }
             ControlUnitDocument controlUnitDocument = controlUnitRepository.getControlUnitDocumentById(data.getControlUnitId());
             return SignalControl.builder()
                 .xControl(sigNalControlDoc.getValue())
@@ -208,6 +209,12 @@ public class WaterTankOperationServiceImpl implements WaterTankOperationService 
     @Override
     public double sendFirstData(DataFromDevice data) {
         sendDataToUser(data, new Date(System.currentTimeMillis()));
+        updateWaterLevelRepository.findByDeviceId(data.getDeviceId())
+            .ifPresent((document -> {
+                document.setValue(data.getValue());
+                document.setTime(new Date(System.currentTimeMillis()));
+                updateWaterLevelRepository.save(document);
+            }));
         return -1;
     }
 

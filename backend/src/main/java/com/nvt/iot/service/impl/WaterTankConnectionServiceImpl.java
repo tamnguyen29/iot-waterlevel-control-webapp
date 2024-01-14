@@ -9,6 +9,7 @@ import com.nvt.iot.model.*;
 import com.nvt.iot.payload.response.ConnectDeviceResponse;
 import com.nvt.iot.repository.ConnectedDeviceRepository;
 import com.nvt.iot.repository.ConnectedUserRepository;
+import com.nvt.iot.service.WaterLevelMeasurementHelperService;
 import com.nvt.iot.service.WaterTankConnectionService;
 import com.nvt.iot.service.WebsocketHandleEventService;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
     private final ConnectedUserRepository connectedUserRepository;
     private final ConnectedDeviceRepository connectedDeviceRepository;
     private final WebsocketHandleEventService websocketHandleEventService;
+    private final WaterLevelMeasurementHelperService waterLevelMeasurementHelperService;
     @Value("${websocket.request.handshake.parameter.client-id}")
     private String CLIENT_ID;
     @Value("${websocket.request.handshake.parameter.client-type}")
@@ -44,6 +46,13 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
                 websocketHandleEventService.sendListDeviceToSpecificUser(id);
             } else if (clientType.equals(ClientType.DEVICE)) {
                 websocketHandleEventService.sendListDeviceToAllUser();
+                waterLevelMeasurementHelperService.createFirstWaterLevelUpdate(
+                    0,
+                    new Date(System.currentTimeMillis()),
+                    id,
+                    null
+                );
+                waterLevelMeasurementHelperService.createFirstXControl(id);
             }
         }
     }

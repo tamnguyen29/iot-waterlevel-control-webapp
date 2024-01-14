@@ -4,14 +4,14 @@
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 
-#define WIFI_SSID "Tam_Nguyen"
-#define WIFI_PASSWORD "cuongTHINH9999@"
+#define WIFI_SSID "19Duong85"
+#define WIFI_PASSWORD "67896789"
 
 #define CLIENT_ID "65376b4db162737d1b961be4"
 #define CLIENT_TYPE "DEVICE"
-
+#define MINUS_DISTANCE 35.05
 /*==========================SERVER CONFIG==============================*/
-#define SERVER_HOST "192.168.1.6"
+#define SERVER_HOST "192.168.1.84"
 #define SERVER_PORT 8080
 #define WS_ENDPOINT "/ws/"
 /*==========================WEBSOCKET CONFIG==============================*/
@@ -100,7 +100,11 @@ double getCurrentDistanceMeasurement()
 
 double getCurrentWaterLevelMeasurement()
 {
-  return getCurrentDistanceMeasurement();
+  double currentWaterLevel = MINUS_DISTANCE - getCurrentDistanceMeasurement();
+  if (currentWaterLevel > (-0.5) && currentWaterLevel < (0.5)) {
+    currentWaterLevel = 0;
+  }
+  return currentWaterLevel;
 }
 
 void setCurrentUserId(String userId)
@@ -365,7 +369,7 @@ void controlMotor_IN(String response)
   x_control = controlSignalObj["xcontrol"];
   setpoint = controlSignalObj["setpoint"];
 
-  pwm_Pumper = map(x_control, 0.03, 0.6 * setpoint, 125, 350);
+  pwm_Pumper = map(x_control, (setpoint - 4), setpoint - 2, 0, 255);
 
   Serial.print("X-control: ");
   Serial.println(x_control);
@@ -374,6 +378,9 @@ void controlMotor_IN(String response)
   if (pwm_Pumper > 255)
   {
     pwm_Pumper = 255;
+  }
+  if (pwm_Pumper < 0) {
+    pwm_Pumper = 0;
   }
   Serial.print("PWN PUMPER: ");
   Serial.println(pwm_Pumper);
@@ -426,6 +433,8 @@ void loop()
       {
         Serial.println("Response: " + response);
         controlMotor_IN(response);
+      } else {
+        stopMotor_IN();
       }
     }
     else
