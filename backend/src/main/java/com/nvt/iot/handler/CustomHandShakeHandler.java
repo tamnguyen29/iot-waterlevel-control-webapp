@@ -22,5 +22,4 @@ public class CustomHandShakeHandler extends DefaultHandshakeHandler {
         String clientId = (String) attributes.get(CLIENT_ID);
         return new UserPrincipal(clientId);
     }
-
 }

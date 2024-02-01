@@ -18,4 +18,5 @@ public interface WebsocketHandleEventService {
     void sendListDeviceToSpecificUser(String userId);
 
     void sendNotificationExceptUser(String exceptUserId, Notification notification);
+    void sendNotificationAllUser(Notification notification);
 }

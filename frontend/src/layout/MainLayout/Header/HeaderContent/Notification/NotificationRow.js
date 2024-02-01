@@ -9,7 +9,7 @@ import FreeDeviceNotificationImage from 'assets/images/notification/free_device.
 import Dot from 'components/@extended/Dot';
 import moment from 'moment';
 
-const NotificationRow = ({ key, content, notificationType, seen, time }) => {
+const NotificationRow = ({ index, content, notificationType, seen, time }) => {
   const notificationImageUrl = notificationType === 'USING_DEVICE' ? UserConnectDeviceNotificationImage : FreeDeviceNotificationImage;
   const formattedTime = moment(time).format('h:mm A');
   const [timeAgo, setTimeAgo] = useState('');
@@ -33,7 +33,7 @@ const NotificationRow = ({ key, content, notificationType, seen, time }) => {
   }, [time]);
   return (
     <>
-      <ListItemButton key={key}>
+      <ListItemButton key={index}>
         <ListItemAvatar>
           <Avatar
             sx={{
@@ -56,7 +56,7 @@ const NotificationRow = ({ key, content, notificationType, seen, time }) => {
   );
 };
 NotificationRow.propTypes = {
-  key: PropTypes.any,
+  index: PropTypes.any,
   content: PropTypes.string,
   notificationType: PropTypes.string,
   seen: PropTypes.bool,

@@ -80,7 +80,7 @@ const PumpOut = () => {
           fontSize: '12px'
         }}
       >
-        {sendPumOutAction.isStarting ? <CircularProgress size={20} /> : 'PUMP OUT'}
+        {sendPumOutAction.isStarting ? <CircularProgress size={20} /> : 'NOISE'}
       </Button>
     </Stack>
   );

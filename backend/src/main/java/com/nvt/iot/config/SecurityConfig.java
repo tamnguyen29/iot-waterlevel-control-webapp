@@ -40,7 +40,9 @@ public class SecurityConfig {
                     "/v3/api-docs/**",
                     "/ws/**",
                     "/api/device/send-data",
-                    "/api/device/send-first-data"
+                    "/api/device/send-first-data",
+                    "/api/device/status",
+                    "/api/test"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

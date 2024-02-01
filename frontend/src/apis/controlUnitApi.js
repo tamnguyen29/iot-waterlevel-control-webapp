@@ -32,7 +32,11 @@ export const addControlUnit = async (userId, jwtAxios, controlUnitData, dispatch
 
 export const deleteControlUnit = async (userId, jwtAxios, dispatch, controlUnitId) => {
   try {
-    await jwtAxios.delete(`${API_ROOT_URL}/api/unit-control/delete/${controlUnitId}`);
+    await jwtAxios.delete(`${API_ROOT_URL}/api/unit-control/delete/${controlUnitId}`, {
+      params: {
+        userId: userId
+      }
+    });
     await getAllControlUnit(userId, jwtAxios, dispatch);
     toast.success('Delete control parameter successfully!');
   } catch (error) {

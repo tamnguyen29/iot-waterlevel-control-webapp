@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface DeviceControllerUserRepository extends MongoRepository<DeviceControllerUserDocument, String> {
     Optional<DeviceControllerUserDocument> findByUserId(String userId);
+    void deleteByUserId(String userId);
 }

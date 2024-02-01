@@ -3,6 +3,8 @@ package com.nvt.iot.controller;
 import com.nvt.iot.model.DataFromDevice;
 import com.nvt.iot.model.SignalControl;
 import com.nvt.iot.payload.request.DeviceRequest;
+import com.nvt.iot.payload.request.DeviceStatusRequest;
+import com.nvt.iot.payload.request.FirstDataFromDevice;
 import com.nvt.iot.payload.request.PumpOutRequest;
 import com.nvt.iot.payload.response.BaseResponse;
 import com.nvt.iot.service.DeviceService;
@@ -53,7 +55,7 @@ public class DeviceController {
     @PutMapping("/update/{id}")
     public ResponseEntity<?> updateDevice(
         @PathVariable String id,
-        @RequestBody @Valid DeviceRequest deviceRequest,
+        @Valid @RequestBody DeviceRequest deviceRequest,
         BindingResult bindingResult
     ) {
         deviceService.update(id, deviceRequest, bindingResult);
@@ -77,15 +79,14 @@ public class DeviceController {
     @PostMapping("/send-data")
     public ResponseEntity<?> sendData(@RequestBody DataFromDevice data) {
         System.out.println("/send-data: " + data);
-        long time = System.currentTimeMillis();
-        SignalControl sigNalControl = waterTankOperationService.getWaterLevelDataFromDevice(data);
-        System.out.println("time: " + (System.currentTimeMillis() - time) * 1.0f / 1000);
+        long timeDelay = System.currentTimeMillis();
+        double sigNalControl = waterTankOperationService.getWaterLevelDataFromDevice(data);
+        System.out.println("time delay: " + (System.currentTimeMillis() - timeDelay) * 1.0f / 1000);
         return new ResponseEntity<>(sigNalControl, HttpStatus.OK);
     }
 
     @PostMapping("/send-first-data")
-    public ResponseEntity<?> sendFirstData(@RequestBody DataFromDevice data) {
-        System.out.println("/send-data: " + data);
+    public ResponseEntity<?> sendFirstData(@RequestBody FirstDataFromDevice data) {
         double sigNalControl = waterTankOperationService.sendFirstData(data);
         return new ResponseEntity<>(sigNalControl, HttpStatus.OK);
     }
@@ -121,5 +122,13 @@ public class DeviceController {
             .message("Send pump out signal successfully!")
             .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+    @PostMapping("/status")
+    public ResponseEntity<?> sendDeviceStatus(
+        @RequestBody @Valid DeviceStatusRequest deviceStatusRequest,
+        BindingResult bindingResult
+    ) {
+        waterTankConnectionService.sendDeviceStatus(deviceStatusRequest, bindingResult);
+        return new ResponseEntity<>("", HttpStatus.OK);
     }
 }

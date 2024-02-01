@@ -11,13 +11,8 @@ import java.util.Optional;
 
 @Repository
 public interface WaterLevelStoreRepository extends MongoRepository<WaterLevelStoreDocument, String> {
-    @Query("{ 'userID': ?0, 'controllerID': ?1, 'deviceID': ?2 }")
-    @Update("{ '$push': { 'water_level': ?3 } }")
-    void addWaterLevelData(String userId, String controllerId, String deviceId, WaterLevelData waterLevelData);
-
     boolean existsByUserIdAndDeviceIdAndControllerId(String userId, String deviceId, String controllerId);
-
     void deleteAllByUserId(String userId);
-
     Optional<WaterLevelStoreDocument> findByUserIdAndDeviceIdAndControllerId(String userId, String deviceId, String controllerId);
+    void deleteByUserIdAndControllerIdAndDeviceId(String userId, String controllerId, String deviceId);
 }

@@ -1,23 +1,14 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useSelector } from 'react-redux';
-import {
-  Typography,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Box,
-  useTheme,
-  IconButton,
-  Stack,
-  CircularProgress
-} from '@mui/material';
+import moment from 'moment';
+import { Typography, Dialog, DialogTitle, DialogContent, DialogActions, Box, useTheme, IconButton, Stack, Avatar } from '@mui/material';
+import LoadingButton from '@mui/lab/LoadingButton';
 import { DataGrid } from '@mui/x-data-grid';
-import { CloseOutlined, ApiOutlined } from '@ant-design/icons';
+import { CloseOutlined, ApiOutlined, ForkOutlined } from '@ant-design/icons';
 import Dot from 'components/@extended/Dot';
 import ConnectImage from 'assets/images/connect-img.png';
+import ESP32Image from 'assets/images/devices/esp32.jpg';
 
 const ConnectedDevices = ({ openPopup, handleClosePopup, handleConnectToDevice, isAbleConnect }) => {
   const theme = useTheme();
@@ -30,7 +21,15 @@ const ConnectedDevices = ({ openPopup, handleClosePopup, handleConnectToDevice, 
     {
       field: 'name',
       headerName: 'NAME',
-      flex: 1
+      flex: 1,
+      renderCell: ({ row: { name } }) => {
+        return (
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <Avatar alt={name} src={ESP32Image} />
+            <p>{name}</p>
+          </Stack>
+        );
+      }
     },
     {
       field: 'description',
@@ -42,14 +41,17 @@ const ConnectedDevices = ({ openPopup, handleClosePopup, handleConnectToDevice, 
       headerName: 'CONNECTED TIME',
       align: 'left',
       flex: 1,
-      cellClassName: 'name-column--cell'
+      cellClassName: 'name-column--cell',
+      renderCell: ({ row: { connectedAt } }) => {
+        return <p>{moment(connectedAt).format('MMMM D, YYYY h:mm:ss A')}</p>;
+      }
     },
     {
       field: 'currentUsingUser',
       headerName: 'CURRENT ACCESS ',
       headerAlign: 'center',
       flex: 1,
-      renderCell: ({ row: { currentUsingUser } }) => {
+      renderCell: ({ row: { currentUsingUser, usingStatus } }) => {
         return (
           <Box
             width="100%"
@@ -61,15 +63,20 @@ const ConnectedDevices = ({ openPopup, handleClosePopup, handleConnectToDevice, 
             borderRadius="4px"
           >
             <Box color={colors.grey[100]} sx={{ ml: '5px' }}>
-              {currentUsingUser ? (
+              {usingStatus === 'AVAILABLE' ? (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography>AVAILABLE</Typography>
+                  <Dot color="success" />
+                </Stack>
+              ) : usingStatus === 'UNAVAILABLE' ? (
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Typography>By [ {currentUsingUser.name} ]</Typography>
                   <Dot color="error" />
                 </Stack>
               ) : (
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography>AVAILABLE</Typography>
-                  <Dot color="success" />
+                  <Typography>BUSY</Typography>
+                  <Dot color="warning" />
                 </Stack>
               )}
             </Box>
@@ -154,23 +161,16 @@ const ConnectedDevices = ({ openPopup, handleClosePopup, handleConnectToDevice, 
       )}
       {isAbleConnect === 'true' && connectedDeviceList.length > 0 && (
         <DialogActions>
-          <Button
+          <LoadingButton
             color="primary"
             variant="contained"
             onClick={() => handleConnectToDevice(currentDeviceIdsSelection)}
-            disabled={isConnectingDevice}
-            sx={{
-              width: '180px',
-              height: '40px',
-              '& .MuiButton-label': {
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }
-            }}
+            endIcon={<ForkOutlined />}
+            loading={isConnectingDevice}
+            loadingPosition="end"
           >
-            {isConnectingDevice ? <CircularProgress color="inherit" size={25} thickness={4} /> : 'Connect'}
-          </Button>
+            CONNECT
+          </LoadingButton>
         </DialogActions>
       )}
     </Dialog>

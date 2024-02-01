@@ -3,7 +3,7 @@ import { getAllUsersAPI, getUserAmount, updateInfoUser } from './userApi';
 import { getAllControlUnit, addControlUnit, deleteControlUnit, updateControlUnit } from './controlUnitApi';
 import { connectToDevice, stopConnectToDevice, sendPumpOutSignal } from './deviceApi';
 import { startMeasurement, stopMeasurement } from './operationApi';
-import { getWaterLevelData } from './waterLevelApi';
+import { getWaterLevelData, deleteWaterLevelData } from './waterLevelApi';
 import { getAllControlData } from './controlDataApi';
 
 const services = {
@@ -23,7 +23,8 @@ const services = {
   logoutAPI,
   sendPumpOutSignal,
   getUserAmount,
-  updateInfoUser
+  updateInfoUser,
+  deleteWaterLevelData
 };
 
 export default services;

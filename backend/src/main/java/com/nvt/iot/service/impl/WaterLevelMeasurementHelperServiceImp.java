@@ -12,6 +12,7 @@ import com.nvt.iot.service.WaterLevelMeasurementHelperService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -26,16 +27,17 @@ public class WaterLevelMeasurementHelperServiceImp implements WaterLevelMeasurem
     public void createFirstWaterLevelStore(
         String userId,
         String deviceId,
-        String controllerId,
-        List<WaterLevelData> dataList
+        String controllerId
     ) {
-        var waterLevelStoreDoc = WaterLevelStoreDocument.builder()
-            .userId(userId)
-            .deviceId(deviceId)
-            .controllerId(controllerId)
-            .waterLevelDataList(dataList)
-            .build();
-        waterLevelStoreRepository.save(waterLevelStoreDoc);
+        if (!waterLevelStoreRepository.existsByUserIdAndDeviceIdAndControllerId(userId, deviceId, controllerId)) {
+            var waterLevelStoreDoc = WaterLevelStoreDocument.builder()
+                    .userId(userId)
+                    .deviceId(deviceId)
+                    .controllerId(controllerId)
+                    .waterLevelDataList(new ArrayList<>())
+                    .build();
+            waterLevelStoreRepository.save(waterLevelStoreDoc);
+        }
     }
 
     @Override

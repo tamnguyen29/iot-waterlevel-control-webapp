@@ -76,11 +76,14 @@ const DashboardDefault = () => {
           dispatch(setConnectedDevices(receivedMessage.content));
           checkExistCurrentUsingDevice(receivedMessage.content);
           break;
+        case 'NOTIFICATION':
+          dispatch(addNotificationItem({ ...receivedMessage.content, time: receivedMessage.time }));
+          break;
         default:
           break;
       }
     } catch (error) {
-      console.log('Cannot receive information from server');
+      console.log('Please reload this page!');
     }
   };
 

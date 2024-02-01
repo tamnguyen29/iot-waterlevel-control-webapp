@@ -2,10 +2,13 @@ package com.nvt.iot.service.impl;
 
 import com.nvt.iot.document.ControlUnitDocument;
 import com.nvt.iot.exception.ControlUnitNameAlreadyExistException;
+import com.nvt.iot.exception.ControlUnitUnableChangeException;
 import com.nvt.iot.exception.NotFoundCustomException;
 import com.nvt.iot.exception.ValidationCustomException;
+import com.nvt.iot.model.ControlData;
 import com.nvt.iot.payload.request.ControlUnitRequest;
 import com.nvt.iot.repository.ControlUnitRepository;
+import com.nvt.iot.repository.DeviceControllerUserRepository;
 import com.nvt.iot.repository.UserRepository;
 import com.nvt.iot.service.ControlUnitService;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,7 @@ import java.util.List;
 public class ControlUnitServiceImpl implements ControlUnitService {
     private final ControlUnitRepository controlUnitRepository;
     private final UserRepository userRepository;
+    private final DeviceControllerUserRepository deviceControllerUserRepository;
 
     @Override
     public void addUnitControl(ControlUnitRequest controlUnitRequest, BindingResult bindingResult) {
@@ -68,6 +72,19 @@ public class ControlUnitServiceImpl implements ControlUnitService {
         }
         var controlUnitDoc = controlUnitRepository.findById(id)
             .orElseThrow(() -> new NotFoundCustomException("Not found control unit with id " + id));
+        deviceControllerUserRepository.findByUserId(controlUnitDoc.getUserId())
+                .ifPresent(dataControlDoc -> {
+                    List<ControlData> controlDataList = dataControlDoc.getControlDataList();
+                    controlDataList.forEach((controlData -> {
+                        controlData.getControlUnitList().forEach((controlUnit -> {
+                            if (controlUnit.getId().equals(id)) {
+                                throw new ControlUnitUnableChangeException(
+                                    "Can not edit control unit, your data has been saved!"
+                                );
+                            }
+                        }));
+                    }));
+                });
         controlUnitDoc.setKp(controlUnitRequest.getKp());
         controlUnitDoc.setName(controlUnitRequest.getName());
         controlUnitDoc.setSetpoint(controlUnitRequest.getSetpoint());
@@ -76,14 +93,12 @@ public class ControlUnitServiceImpl implements ControlUnitService {
     }
 
     @Override
-    public void delete(String id) {
+    public void delete(String id, String usedId) {
         validateUnitControlIdFormat(id);
-
-        if (controlUnitRepository.existsById(id)) {
-            controlUnitRepository.deleteById(id);
-        } else {
+        if (!controlUnitRepository.existsById(id)) {
             throw new NotFoundCustomException("Not found control unit with id " + id);
         }
+        controlUnitRepository.deleteById(id);
     }
 
     private void validateUnitControlIdFormat(String id) {

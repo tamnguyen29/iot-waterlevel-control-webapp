@@ -87,4 +87,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
             .body(response);
     }
+
+    @ExceptionHandler(ControlUnitUnableChangeException.class)
+    public ResponseEntity<?> handleControlUnitUnableChangeException(Exception e) {
+        var response = ErrorResponse.builder()
+            .statusCode(HttpStatus.UNPROCESSABLE_ENTITY.value())
+            .message(e.getMessage())
+            .build();
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+            .body(response);
+    }
 }

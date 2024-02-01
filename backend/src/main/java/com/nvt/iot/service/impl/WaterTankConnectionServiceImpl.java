@@ -6,6 +6,7 @@ import com.nvt.iot.exception.DeviceNotAvailableException;
 import com.nvt.iot.exception.NotFoundCustomException;
 import com.nvt.iot.exception.ValidationCustomException;
 import com.nvt.iot.model.*;
+import com.nvt.iot.payload.request.DeviceStatusRequest;
 import com.nvt.iot.payload.response.ConnectDeviceResponse;
 import com.nvt.iot.repository.ConnectedDeviceRepository;
 import com.nvt.iot.repository.ConnectedUserRepository;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.BindingResult;
 
 import java.util.Date;
 import java.util.Map;
@@ -69,7 +71,7 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
 
         ConnectedUserDocument userDocument = connectedUserRepository.findById(userId)
             .orElseThrow(
-                () -> new NotFoundCustomException("Can't not find user information!")
+                () -> new NotFoundCustomException("Please reload the page!")
             );
         if (connectedDevice.getUsingStatus().equals(UsingStatus.AVAILABLE)) {
             var currentUsingUser = CurrentUsingUser.builder()
@@ -104,26 +106,38 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
     public void stopConnectToDevice(String deviceId, String userId) {
         validateIsNotNullOrEmpty(deviceId);
         validateIsNotNullOrEmpty(userId);
-
-        //Check device is currently used by this user
         if (!connectedDeviceRepository.existsByIdAndCurrentUsingUserId(deviceId, userId)) {
             throw new NotFoundCustomException("Not found device or user connect!");
         }
+        websocketHandleEventService.sendMessageToDevice(userId, deviceId, Action.USER_DISCONNECT_TO_DEVICE);
+    }
 
-        Optional<ConnectedDeviceDocument> deviceDocumentOptional = connectedDeviceRepository.findById(deviceId);
+    @Override
+    public void sendDeviceStatus(DeviceStatusRequest deviceStatusRequest, BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            throw new ValidationCustomException(bindingResult);
+        }
+        Optional<ConnectedDeviceDocument> deviceDocumentOptional = connectedDeviceRepository
+            .findById(deviceStatusRequest.getDeviceId());
+
         deviceDocumentOptional.ifPresent((deviceDocument) -> {
-            deviceDocument.setUsingStatus(UsingStatus.AVAILABLE);
-            deviceDocument.setCurrentUsingUser(null);
-            connectedDeviceRepository.save(deviceDocument);
-
-            websocketHandleEventService.sendMessageToDevice(userId, deviceId, Action.USER_DISCONNECT_TO_DEVICE);
-            websocketHandleEventService.sendListDeviceToAllUser();
-            var notification = Notification.builder()
-                .notificationType(NotificationType.DEVICE_FREE)
-                .isSeen(false)
-                .content(deviceDocument.getName() + " is available access now!")
-                .build();
-            websocketHandleEventService.sendNotificationExceptUser(userId, notification);
+            if (deviceStatusRequest.getStatus().equals("AVAILABLE")) {
+                deviceDocument.setUsingStatus(UsingStatus.AVAILABLE);
+                deviceDocument.setCurrentUsingUser(null);
+                connectedDeviceRepository.save(deviceDocument);
+                websocketHandleEventService.sendListDeviceToAllUser();
+                var notification = Notification.builder()
+                    .notificationType(NotificationType.DEVICE_FREE)
+                    .isSeen(false)
+                    .content(deviceDocument.getName() + " is available access now!")
+                    .build();
+                websocketHandleEventService.sendNotificationAllUser(notification);
+            } else if (deviceStatusRequest.getStatus().equals("BUSY")) {
+                deviceDocument.setUsingStatus(UsingStatus.BUSY);
+                deviceDocument.setCurrentUsingUser(null);
+                connectedDeviceRepository.save(deviceDocument);
+                websocketHandleEventService.sendListDeviceToAllUser();
+            }
         });
     }
 

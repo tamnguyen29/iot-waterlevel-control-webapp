@@ -38,7 +38,6 @@ public class CustomHandShakeInterceptor implements HandshakeInterceptor {
 
         if (query != null && uri.getPath().contains("/websocket")) {
             final UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUri(uri);
-
             String clientId = uriComponentsBuilder.build()
                 .getQueryParams()
                 .getFirst(CLIENT_ID);

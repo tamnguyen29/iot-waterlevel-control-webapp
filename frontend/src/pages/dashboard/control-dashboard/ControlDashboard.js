@@ -99,7 +99,6 @@ const ControlDashboard = () => {
         </Grid>
         <MainCard sx={{ mt: 2 }} content={false}>
           <ControlParameter />
-          {/* <MonthlyBarChart /> */}
         </MainCard>
       </Grid>
     </Grid>

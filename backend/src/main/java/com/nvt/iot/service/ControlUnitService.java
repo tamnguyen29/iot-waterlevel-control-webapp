@@ -16,5 +16,5 @@ public interface ControlUnitService {
 
     void update(String id, ControlUnitRequest controlUnitRequest, BindingResult bindingResult);
 
-    void delete(String id);
+    void delete(String id, String userId);
 }

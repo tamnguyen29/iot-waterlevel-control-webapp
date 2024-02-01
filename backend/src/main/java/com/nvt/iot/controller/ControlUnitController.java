@@ -65,8 +65,8 @@ public class ControlUnitController {
     }
 
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<?> delete(@PathVariable String id) {
-        controlUnitService.delete(id);
+    public ResponseEntity<?> delete(@PathVariable String id, @RequestParam String userId) {
+        controlUnitService.delete(id, userId);
         var response = BaseResponse.builder()
             .statusCode(200)
             .message("Delete control unit successfully!")

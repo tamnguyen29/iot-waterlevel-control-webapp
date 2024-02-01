@@ -5,10 +5,7 @@ import com.nvt.iot.service.WaterLevelStoreService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/water-level")
@@ -29,4 +26,18 @@ public class WaterLevelStoreController {
             .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
+    @DeleteMapping("/delete")
+    public ResponseEntity<?> deleteWaterLevelData(
+        @RequestParam String userId,
+        @RequestParam String deviceId,
+        @RequestParam String controlUnitId
+    ) {
+        waterLevelStoreService.deleteWaterLevelData(userId, controlUnitId, deviceId);
+        var response = BaseResponse.builder()
+            .statusCode(200)
+            .message("Delete water level data successfully!")
+            .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
 }

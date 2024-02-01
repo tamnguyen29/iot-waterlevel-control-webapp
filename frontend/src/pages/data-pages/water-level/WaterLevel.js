@@ -18,7 +18,11 @@ const WaterLevel = () => {
   const dispatch = useDispatch();
   const jwtAxios = createJWTAxios(loginUser, dispatch);
   const [controlData, setControlData] = useState([]);
-  const [waterLevelData, setWaterLevelData] = useState([]);
+  const [waterLevelData, setWaterLevelData] = useState({
+    deviceId: '',
+    controlUnitId: '',
+    data: []
+  });
   const [openPopup, setOpenPopup] = useState(false);
 
   useEffect(() => {
@@ -35,8 +39,18 @@ const WaterLevel = () => {
   };
   const handleLoadData = async (id, deviceId) => {
     const data = await services.getWaterLevelData(jwtAxios, loginUser.user.id, id, deviceId);
-    setWaterLevelData(data);
+    setWaterLevelData({
+      deviceId: deviceId,
+      controlUnitId: id,
+      data: data
+    });
     setOpenPopup(true);
+  };
+
+  const handleDeleteWaterLevelData = async (controlUnitId, deviceId) => {
+    await services.deleteWaterLevelData(dispatch, jwtAxios, loginUser.user.id, controlUnitId, deviceId);
+    await getDataControl();
+    setOpenPopup(false);
   };
 
   const columns = [
@@ -79,7 +93,7 @@ const WaterLevel = () => {
             fullWidth
             onClick={() => handleLoadData(id, deviceId)}
             sx={{
-              color: `${colors.text.primary} !important`, // Thêm !important ở đây
+              color: `${colors.text.primary} !important`,
               backgroundColor: `${colors.primary.light} !important`,
               fontWeight: 900
             }}
@@ -101,7 +115,7 @@ const WaterLevel = () => {
                 alt="ESP32"
                 src={ESP32Image}
                 sx={{
-                  border: '2px solid #c9c6c5' // Màu và độ dày của viền
+                  border: '2px solid #c9c6c5'
                 }}
               />
               <Typography>
@@ -147,7 +161,12 @@ const WaterLevel = () => {
   return (
     <MainCard>
       <WaterLevelElement />
-      <WaterLevelDataDisplay openPopup={openPopup} handleClosePopup={handleClosePopup} waterLevelData={waterLevelData} />
+      <WaterLevelDataDisplay
+        openPopup={openPopup}
+        handleClosePopup={handleClosePopup}
+        waterLevelData={waterLevelData}
+        handleDeleteWaterLevelData={handleDeleteWaterLevelData}
+      />
     </MainCard>
   );
 };

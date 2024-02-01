@@ -100,4 +100,21 @@ public class WebsocketHandleEventServiceImpl implements WebsocketHandleEventServ
             }
         }));
     }
+
+    @Override
+    public void sendNotificationAllUser(Notification notification) {
+        List<ConnectedUserDocument> onlineUserList = connectedUserRepository.findAll();
+        onlineUserList.forEach((onlineUser) -> {
+            var message = Message.builder()
+                .sender("SERVER")
+                .action(Action.NOTIFICATION)
+                .time(new Date(System.currentTimeMillis()))
+                .content(notification)
+                .build();
+            simpMessagingTemplate.convertAndSend(
+                CONNECTED_CLIENTS_ROOM,
+                message
+            );
+        });
+    }
 }

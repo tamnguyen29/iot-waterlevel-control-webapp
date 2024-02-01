@@ -1,13 +1,15 @@
 import PropTypes from 'prop-types';
 import { Dialog, DialogTitle, DialogContent, IconButton, useTheme, Grid, Button, Stack, useMediaQuery } from '@mui/material';
+import LoadingButton from '@mui/lab/LoadingButton';
 import { DataGrid } from '@mui/x-data-grid';
-import { CloseOutlined, LineChartOutlined, FilterOutlined } from '@ant-design/icons';
+import { CloseOutlined, LineChartOutlined, FilterOutlined, DeleteOutlined } from '@ant-design/icons';
 import ReactApexChart from 'react-apexcharts';
 import { useState } from 'react';
 import MainCard from 'components/MainCard';
 import { DatePicker } from 'antd';
 const { RangePicker } = DatePicker;
 import moment from 'moment';
+import { useSelector } from 'react-redux';
 
 const columns = [
   {
@@ -32,14 +34,16 @@ const columns = [
     flex: 1
   }
 ];
-const WaterLevelDataDisplay = ({ openPopup, handleClosePopup, waterLevelData }) => {
+const WaterLevelDataDisplay = ({ openPopup, handleClosePopup, waterLevelData, handleDeleteWaterLevelData }) => {
   const theme = useTheme();
   const colors = theme.palette;
   const [timeFilter, setTimeFilter] = useState([]);
   const [isShowChart, setIsShowChart] = useState(false);
   const isSmallScreen = useMediaQuery('(max-width:600px)');
   const [waterLevelDataDisplay, setWaterLevelDataDisplay] = useState(undefined);
-  console.log('water level data dis', waterLevelDataDisplay);
+  const deleteWaterLevelDataState = useSelector((state) => state.waterLevel.deleteData);
+
+  console.log('isSmallScreen', isSmallScreen);
   const ClosePopupIcon = () => {
     return (
       <IconButton style={{ float: 'right' }} onClick={handleClosePopup}>
@@ -55,7 +59,7 @@ const WaterLevelDataDisplay = ({ openPopup, handleClosePopup, waterLevelData }) 
   const options = {
     colors: [colors.primary.main, colors.primary[700]],
     xaxis: {
-      categories: (!waterLevelDataDisplay ? waterLevelData : waterLevelDataDisplay).map(({ time }) => {
+      categories: (!waterLevelDataDisplay ? waterLevelData.data : waterLevelDataDisplay).map(({ time }) => {
         let timeDate = new Date(time);
         return `${timeDate.getHours()}:${timeDate.getMinutes()}:${timeDate.getSeconds()}`;
       }),
@@ -102,13 +106,13 @@ const WaterLevelDataDisplay = ({ openPopup, handleClosePopup, waterLevelData }) 
   const series = [
     {
       name: 'Water level data',
-      data: (!waterLevelDataDisplay ? waterLevelData : waterLevelDataDisplay).map((item) => item.value.toFixed(2))
+      data: (!waterLevelDataDisplay ? waterLevelData.data : waterLevelDataDisplay).map((item) => item.value.toFixed(2))
     }
   ];
 
   const handleFilterByTimeClick = () => {
     if (timeFilter.length === 0) return;
-    const filterData = waterLevelData.filter((item) => {
+    const filterData = waterLevelData.data.filter((item) => {
       const time = new Date(item.time).getTime();
       return time >= timeFilter[0].valueOf() && time <= timeFilter[1].valueOf();
     });
@@ -137,8 +141,18 @@ const WaterLevelDataDisplay = ({ openPopup, handleClosePopup, waterLevelData }) 
                   onChange={(value) => setTimeFilter(value)}
                 />
                 <Button variant="contained" color="secondary" endIcon={<FilterOutlined />} onClick={handleFilterByTimeClick}>
-                  Filter by time
+                  FILTER BY TIME
                 </Button>
+                <LoadingButton
+                  variant="contained"
+                  color="error"
+                  endIcon={<DeleteOutlined />}
+                  onClick={() => handleDeleteWaterLevelData(waterLevelData.controlUnitId, waterLevelData.deviceId)}
+                  loading={deleteWaterLevelDataState.isFetching}
+                  loadingPosition="end"
+                >
+                  DELETE DATA
+                </LoadingButton>
               </Stack>
               <Button
                 variant="outlined"
@@ -146,13 +160,13 @@ const WaterLevelDataDisplay = ({ openPopup, handleClosePopup, waterLevelData }) 
                 onClick={handleShowChart}
                 color={isShowChart ? 'error' : 'success'}
               >
-                {isShowChart ? 'Stop' : 'Chart'}
+                {isShowChart ? 'STOP SHOW CHART' : 'CHART'}
               </Button>
             </Stack>
           </Grid>
           <Grid item xs={12} sm={12} md={12} lg={isShowChart ? 4 : 12} sx={{ height: 515 }}>
             <DataGrid
-              rows={(!waterLevelDataDisplay ? waterLevelData : waterLevelDataDisplay).map((item, index) => ({
+              rows={(!waterLevelDataDisplay ? waterLevelData.data : waterLevelDataDisplay).map((item, index) => ({
                 ...item,
                 id: index + 1,
                 time: moment(item.time).format('MMMM D, YYYY, h:mm:ss A')
@@ -197,7 +211,8 @@ const WaterLevelDataDisplay = ({ openPopup, handleClosePopup, waterLevelData }) 
 WaterLevelDataDisplay.propTypes = {
   openPopup: PropTypes.bool,
   handleClosePopup: PropTypes.func,
-  waterLevelData: PropTypes.array
+  waterLevelData: PropTypes.object,
+  handleDeleteWaterLevelData: PropTypes.func
 };
 
 export default WaterLevelDataDisplay;

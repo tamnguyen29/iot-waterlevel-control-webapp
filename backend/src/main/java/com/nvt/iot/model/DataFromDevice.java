@@ -14,4 +14,6 @@ public class DataFromDevice {
     private String controlUnitId;
     private String userId;
     private String deviceId;
+    private double setpoint;
+    private double kp;
 }

@@ -2,6 +2,7 @@ import { useState, Fragment } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { createJWTAxios } from 'apis/createInstance';
 import { Typography, Stack, Button, CircularProgress, Avatar } from '@mui/material';
+import LoadingButton from '@mui/lab/LoadingButton';
 import { StopOutlined, ApiOutlined } from '@ant-design/icons';
 // import MonthlyBarChart from '../MonthlyBarChart';
 import MainCard from 'components/MainCard';
@@ -45,62 +46,48 @@ const ControlDashboardHeader = () => {
               alt="ESP32"
               src={ESP32Image}
               sx={{
-                border: '2px solid #c9c6c5' // Màu và độ dày của viền
+                border: '2px solid #c9c6c5'
               }}
             />
             <Typography variant="h3">{currentUsingDevice?.device.name}</Typography>
           </Stack>
-          <Typography variant="h5">[{currentUsingDevice?.device.description}]</Typography>
-          <Typography variant="h6">Using time: {formattedDateTime.format(new Date(currentUsingDevice?.connectDeviceTime))}</Typography>
+          <Typography variant="h5" color="textSecondary">
+            INFORMATION [<span style={{ color: '#e61212' }}>{currentUsingDevice?.device.description}</span>]
+          </Typography>
+          <Typography variant="h5" color="textSecondary">
+            CONNECT TIME [
+            <span style={{ color: '#e61212' }}>{formattedDateTime.format(new Date(currentUsingDevice?.connectDeviceTime))}</span>]
+          </Typography>
         </Stack>
         <Stack direction="column" spacing={1}>
-          <Button
+          <LoadingButton
             variant="contained"
             onClick={handleStopUsingDevice}
-            disabled={isStopConnecting}
             color="warning"
-            sx={{
-              width: '140px',
-              height: '40px',
-              fontSize: '0.9rem',
-              '& .MuiButton-label': {
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              },
-              '& .anticon': {
-                fontSize: '1.2rem',
-                marginLeft: '10px'
-              }
-            }}
+            endIcon={<StopOutlined />}
+            loading={isStopConnecting}
+            loadingPosition="end"
           >
-            {isStopConnecting ? (
-              <CircularProgress color="inherit" size={25} thickness={4} />
-            ) : (
-              <span>
-                Stop using
-                <StopOutlined />
-              </span>
-            )}
-          </Button>
+            STOP CONNECT
+          </LoadingButton>
           <Button
             variant="contained"
             onClick={handleOpenPopup}
             color="info"
-            sx={{
-              width: '140px',
-              height: '40px',
-              display: 'flex',
-              alignItems: 'center',
-              fontSize: '1rem',
-              '& .anticon': {
-                fontSize: '1.5rem',
-                marginLeft: '14px'
-              }
-            }}
+            // sx={{
+            //   width: '140px',
+            //   height: '40px',
+            //   display: 'flex',
+            //   alignItems: 'center',
+            //   fontSize: '1rem',
+            //   '& .anticon': {
+            //     fontSize: '1.5rem',
+            //     marginLeft: '14px'
+            //   }
+            // }}
+            endIcon={<ApiOutlined />}
           >
-            Devices
-            <ApiOutlined />
+            DEVICES
           </Button>
         </Stack>
       </Stack>

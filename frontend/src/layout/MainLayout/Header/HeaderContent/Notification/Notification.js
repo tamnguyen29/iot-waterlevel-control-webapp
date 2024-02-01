@@ -135,6 +135,7 @@ const Notification = () => {
                     {notificationListRedux.map((notification, index) => (
                       <NotificationRow
                         key={index}
+                        index={index}
                         content={notification.content}
                         notificationType={notification.notificationType}
                         seen={notification.seen}

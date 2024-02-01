@@ -101,15 +101,11 @@ public class WebsocketEventHandler {
                     connectedDeviceRepository.findByCurrentUsingUserId(
                         connectedUserDocument.getId()
                     ).ifPresent((deviceDocument -> {
-                        deviceDocument.setUsingStatus(UsingStatus.AVAILABLE);
-                        deviceDocument.setCurrentUsingUser(null);
-                        connectedDeviceRepository.save(deviceDocument);
                         websocketHandleEventService.sendMessageToDevice(
                             connectedUserDocument.getId(),
                             deviceDocument.getId(),
                             Action.USER_DISCONNECT_TO_DEVICE
                         );
-                        websocketHandleEventService.sendListDeviceToAllUser();
                     }));
                     deleteConnectedUserOrDeviceBySessionId(ClientType.USER, sessionId);
                     websocketHandleEventService.sendListUserToAllUser();
@@ -126,7 +122,6 @@ public class WebsocketEventHandler {
                     deleteConnectedUserOrDeviceBySessionId(ClientType.DEVICE, sessionId);
                     websocketHandleEventService.sendListDeviceToAllUser();
                 }));
-
         }
     }
 

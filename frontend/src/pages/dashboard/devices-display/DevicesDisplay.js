@@ -24,12 +24,15 @@ const DevicesDisplay = () => {
       toast.warning('You should choose at least one!');
     } else if (ids.length === 1) {
       const device = connectedDeviceList.find((device) => device.id === ids[0]);
-      if (!device.currentUsingUser) {
+
+      if (device.usingStatus === 'AVAILABLE') {
         await services.connectToDevice(jwtAxios, dispatch, device.id, loginUser.user.id);
-      } else if (loginUser.user.id === device.currentUsingUser.id) {
+      } else if (device.usingStatus === 'UNAVAILABLE' && loginUser.user.id === device.currentUsingUser.id) {
         toast.info('You are already used this device!');
+      } else if (device.usingStatus === 'BUSY') {
+        toast.warning(`${device.name} is BUSY right now!`);
       } else {
-        toast.warning(`This device is currently used by ${device.currentUsingUser.name}. Try others!`);
+        toast.warning(`${device.name} is currently used by ${device.currentUsingUser.name}. Try others!`);
       }
     } else {
       toast.warning('You can only choose one device!');
