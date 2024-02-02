@@ -4,15 +4,23 @@
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 
-#define WIFI_SSID "19Duong85"
-#define WIFI_PASSWORD "67896789"
+#define WIFI_SSID "iPhone"
+#define WIFI_PASSWORD "ngothaiphu"
+/*
+CLIENT_ID_1: 65376b4db162737d1b961be4
+CLIENT_ID_1: 64376b4db162737d1b961be4
 
-#define CLIENT_ID "65376b4db162737d1b961be4"
+MINUS_DISTANCE_1 34.85
+MINUS_DISTANCE_2 34.84
+
+*/
+
+#define CLIENT_ID "64376b4db162737d1b961be4"
 #define CLIENT_TYPE "DEVICE"
 #define MINUS_DISTANCE 34.85
 #define INTERVAL 100
 /*==========================SERVER CONFIG==============================*/
-#define SERVER_HOST "192.168.1.47"
+#define SERVER_HOST "172.20.10.3"
 #define SERVER_PORT 8080
 #define WS_ENDPOINT "/ws/"
 /*==========================WEBSOCKET CONFIG==============================*/
@@ -116,9 +124,9 @@ double movingAverage(double value)
   static double values[nvalues];
 
   if (cvalues > 0) {
-    double diff = abs(value - values[current - 1]);
-    if (diff > 2.0) {
-      value = (value > values[current - 1]) ? value + 0.3 : value - 0.3;
+    double diff = abs(value - waterLevel);
+    if (diff > 3) {
+      value = (value > waterLevel) ? waterLevel + 0.4 : waterLevel - 0.3;
     }
   }
 
@@ -395,7 +403,6 @@ void handleTextMessageReceived(String text)
     Serial.println("CurrentControlId: " + currentControlUnitId);
     Serial.println("Setpoint: " + String(setpoint));
     Serial.println("Kp: " + String(kp));
-    waterLevel = getCurrentWaterLevelMeasurement();
     isAllowMeasured = true;
   }
   else if (ACTION.equals("STOP_MEASUREMENT"))
@@ -473,7 +480,7 @@ int mapToPWM()
   Serial.print("Setpoint: ");
   Serial.println(setpoint);
 
-  int pwm = map(x_control, 0, kp * setpoint, 0, 340);
+  int pwm = map(x_control, 0, kp * setpoint, 0, 355);
 
   Serial.print("PWM: ");
   Serial.println(pwm);
