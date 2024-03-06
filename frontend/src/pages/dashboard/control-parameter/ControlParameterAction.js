@@ -16,7 +16,8 @@ import {
   OutlinedInput,
   CircularProgress,
   useTheme,
-  Typography
+  Typography,
+  Tooltip
 } from '@mui/material';
 import AnimateButton from 'components/@extended/AnimateButton';
 import * as Yup from 'yup';
@@ -444,15 +445,21 @@ const ControlParameterAction = ({ controlUnit, handleControlUnitChange }) => {
   return (
     <>
       <Stack direction="row" justifyContent="space-between">
-        <IconButton onClick={openAddControlUnitElement}>
-          <PlusSquareOutlined style={{ fontSize: '24px' }} />
-        </IconButton>
-        <IconButton onClick={openDeleteControlUnitElement}>
-          <DeleteOutlined style={{ fontSize: '24px' }} />
-        </IconButton>
-        <IconButton onClick={openEditControlUnitElement}>
-          <EditOutlined style={{ fontSize: '24px' }} />
-        </IconButton>
+        <Tooltip title="Add control parameter" arrow>
+          <IconButton onClick={openAddControlUnitElement}>
+            <PlusSquareOutlined style={{ fontSize: '24px' }} />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Delete control parameter" arrow>
+          <IconButton onClick={openDeleteControlUnitElement}>
+            <DeleteOutlined style={{ fontSize: '24px' }} />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Edit control parameter" arrow>
+          <IconButton onClick={openEditControlUnitElement}>
+            <EditOutlined style={{ fontSize: '24px' }} />
+          </IconButton>
+        </Tooltip>
       </Stack>
       <Fragment>
         <AddControlUnitElement />

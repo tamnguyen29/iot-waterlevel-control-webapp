@@ -34,13 +34,13 @@ import { createJWTAxios } from 'apis/createInstance';
 const EditProfileElement = ({ openEditProfile, handleCloseEditProfile }) => {
   const fileInputRef = useRef(null);
   const theme = useTheme();
+  const colors = theme.palette;
   const loginUser = useSelector((state) => state.auth.login.currentUser);
   const dispatch = useDispatch();
   const jwtAxios = createJWTAxios(loginUser, dispatch);
   const avatar = loginUser.user.avatar === 'DEFAULT' ? DefaultAvatar : loginUser.user.avatar;
   const [displayImage, setDisplayImage] = useState(avatar);
   const imageUploadRef = useRef(null);
-  const colors = theme.palette;
   const handleUploadPictureClick = () => {
     fileInputRef.current.click();
   };

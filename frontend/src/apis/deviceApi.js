@@ -3,6 +3,7 @@ import { connectDeviceStart, connectDeviceSuccess, connectDeviceFailed } from 's
 import { stopConnectDeviceStart, stopConnectDeviceFailed, stopConnectDeviceSuccess } from 'store/reducers/userReducer';
 import { sendPumpOutSignalBegin, sendPumpOutSignalSuccess, sendPumpOutSignalFailed } from 'store/reducers/deviceReducer';
 import { toast } from 'react-toastify';
+import { resetAllState } from 'store/reducers/deviceReducer';
 
 export const connectToDevice = async (jwtAxios, dispatch, deviceId, userId) => {
   try {
@@ -13,7 +14,9 @@ export const connectToDevice = async (jwtAxios, dispatch, deviceId, userId) => {
       }
     });
     const data = res.data.data;
+    console.log('Data connect device: ', data);
     dispatch(connectDeviceSuccess(data));
+    dispatch(resetAllState());
     toast.success(`Using ${data.device.name} successfully!`);
   } catch (error) {
     if (error.code === 'ERR_NETWORK') {

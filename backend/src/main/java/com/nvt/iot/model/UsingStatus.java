@@ -3,5 +3,6 @@ package com.nvt.iot.model;
 public enum UsingStatus {
     AVAILABLE,
     UNAVAILABLE,
-    BUSY
+    BUSY,
+    RESET_PROCESS
 }

@@ -38,7 +38,6 @@ const WaterLevelChart = ({ slot }) => {
     yData: []
   });
   const theme = useTheme();
-  console.log('current data', currentData);
 
   const { primary, secondary } = theme.palette.text;
   const line = theme.palette.divider;

@@ -5,6 +5,7 @@ import { Container, Typography, Button } from '@mui/material';
 import services from 'apis/index';
 import { createJWTAxios } from 'apis/createInstance';
 import ConnectedDevices from './ConnectedDevices';
+import { connectDeviceSuccess } from 'store/reducers/userReducer';
 
 const DevicesDisplay = () => {
   const [openPopup, setOpenPopup] = useState(false);
@@ -17,6 +18,7 @@ const DevicesDisplay = () => {
   };
   const handleClosePopup = () => {
     setOpenPopup(false);
+    dispatch(connectDeviceSuccess());
   };
 
   const handleConnectToDevice = async (ids) => {

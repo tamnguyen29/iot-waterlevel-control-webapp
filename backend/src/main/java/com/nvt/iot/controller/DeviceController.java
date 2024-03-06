@@ -1,11 +1,7 @@
 package com.nvt.iot.controller;
 
 import com.nvt.iot.model.DataFromDevice;
-import com.nvt.iot.model.SignalControl;
-import com.nvt.iot.payload.request.DeviceRequest;
-import com.nvt.iot.payload.request.DeviceStatusRequest;
-import com.nvt.iot.payload.request.FirstDataFromDevice;
-import com.nvt.iot.payload.request.PumpOutRequest;
+import com.nvt.iot.payload.request.*;
 import com.nvt.iot.payload.response.BaseResponse;
 import com.nvt.iot.service.DeviceService;
 import com.nvt.iot.service.WaterTankConnectionService;
@@ -129,6 +125,15 @@ public class DeviceController {
         BindingResult bindingResult
     ) {
         waterTankConnectionService.sendDeviceStatus(deviceStatusRequest, bindingResult);
+        return new ResponseEntity<>("", HttpStatus.OK);
+    }
+
+    @PostMapping("/reset-process")
+    public ResponseEntity<?> resetProcess(
+        @RequestBody @Valid DeviceResetProcessRequest deviceResetProcessRequest,
+        BindingResult error
+    ) {
+        waterTankOperationService.sendRestartControlProcessToUser(deviceResetProcessRequest, error);
         return new ResponseEntity<>("", HttpStatus.OK);
     }
 }

@@ -41,4 +41,17 @@ public class WaterTankOperationController {
             .build();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
+
+    @GetMapping("/reset-process/{deviceId}")
+    public ResponseEntity<?> restartProcess(
+        @PathVariable String deviceId,
+        @RequestParam String userId
+    ) {
+        waterTankOperationService.sendRestartControlProcessToDevice(deviceId, userId);
+        var response = BaseResponse.builder()
+            .statusCode(200)
+            .message("Restart control process successfully!")
+            .build();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
 }

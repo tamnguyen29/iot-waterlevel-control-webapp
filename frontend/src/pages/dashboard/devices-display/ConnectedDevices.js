@@ -63,20 +63,28 @@ const ConnectedDevices = ({ openPopup, handleClosePopup, handleConnectToDevice, 
             borderRadius="4px"
           >
             <Box color={colors.grey[100]} sx={{ ml: '5px' }}>
-              {usingStatus === 'AVAILABLE' ? (
+              {usingStatus === 'AVAILABLE' && (
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Typography>AVAILABLE</Typography>
                   <Dot color="success" />
                 </Stack>
-              ) : usingStatus === 'UNAVAILABLE' ? (
+              )}
+              {usingStatus === 'UNAVAILABLE' && (
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Typography>By [ {currentUsingUser.name} ]</Typography>
                   <Dot color="error" />
                 </Stack>
-              ) : (
+              )}
+              {usingStatus === 'BUSY' && (
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Typography>BUSY</Typography>
                   <Dot color="warning" />
+                </Stack>
+              )}
+              {usingStatus === 'RESET_PROCESS' && (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography>By [ {currentUsingUser.name} ]</Typography>
+                  <Dot color="error" />
                 </Stack>
               )}
             </Box>

@@ -1,7 +1,7 @@
 import { useState, Fragment } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { createJWTAxios } from 'apis/createInstance';
-import { Typography, Stack, Button, CircularProgress, Avatar } from '@mui/material';
+import { Typography, Stack, Button, Avatar } from '@mui/material';
 import LoadingButton from '@mui/lab/LoadingButton';
 import { StopOutlined, ApiOutlined } from '@ant-design/icons';
 // import MonthlyBarChart from '../MonthlyBarChart';

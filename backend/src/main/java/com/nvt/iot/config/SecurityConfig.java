@@ -42,7 +42,8 @@ public class SecurityConfig {
                     "/api/device/send-data",
                     "/api/device/send-first-data",
                     "/api/device/status",
-                    "/api/test"
+                    "/api/test",
+                    "/api/device/reset-process"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

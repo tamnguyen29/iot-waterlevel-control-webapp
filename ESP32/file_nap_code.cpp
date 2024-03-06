@@ -4,37 +4,24 @@
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 
+#define WIFI_SSID "2i"
+#define WIFI_PASSWORD "12341234"
 /*
 CLIENT_ID_1: 65376b4db162737d1b961be4
 CLIENT_ID_2: 64376b4db162737d1b961be4
 
 MINUS_DISTANCE_1 34.85
-MINUS_DISTANCE_2 33.86
-
-CLIENT1: 102 PWM OUT
-CLIENT2: 112 PWM OUT
+MINUS_DISTANCE_2 34.84
 
 */
-#define WIFI_SSID "2i"
-#define WIFI_PASSWORD "12341234"
-/*================================ESP32_1=================================*/
+
 #define CLIENT_ID "65376b4db162737d1b961be4"
 #define CLIENT_TYPE "DEVICE"
 #define MINUS_DISTANCE 34.85
-#define PWM_PUMPER_OUT_MAX 105
-#define IS_ESP_2 false
-/*========================================================================*/
-
-/*================================ESP32_2=================================*/
-// #define CLIENT_ID "64376b4db162737d1b961be4"
-// #define CLIENT_TYPE "DEVICE"
-// #define MINUS_DISTANCE 33.86
-// #define PWM_PUMPER_OUT_MAX 105
-// #define IS_ESP_2 true
-/*========================================================================*/
-/*==========================SERVER CONFIG=================================*/
+#define INTERVAL 100
+/*==========================SERVER CONFIG==============================*/
 #define SERVER_HOST "192.168.43.164"
-#define SERVER_PORT 8081
+#define SERVER_PORT 8080
 #define WS_ENDPOINT "/ws/"
 /*==========================WEBSOCKET CONFIG==============================*/
 #define CONNECTION_ENDPOINT = "/app/member-connect";
@@ -45,8 +32,6 @@ CLIENT2: 112 PWM OUT
 #define JSON_DOC_SIZE 2048
 #define AVAILABLE_STATUS "AVAILABLE"
 #define BUSY_STATUS "BUSY"
-#define RESET_STATUS_START "START_RESET"
-#define RESET_STATUS_FINISH "FINISH_RESET"
 /*=====================================================================*/
 
 /*==========================ESP32 CONFIG==============================*/
@@ -80,9 +65,6 @@ int percentage;
 bool isOffset = false;
 bool isStopProcess = false;
 bool isTargetSetpoint = false;
-bool isValidKpMinVar = false;
-bool isValidKpMaxVar = false;
-double diffStop;
 /*==========================DECLARING FUNCTION==========================*/
 void wifiSetup();
 void setCurrentUserId(String userId);
@@ -135,25 +117,13 @@ double getCurrentDistanceMeasurement()
   return (distance_sensor());
 }
 
-double calculateDiffStop()
-{
-  double min = 0.01;
-  double max = (IS_ESP_2) ? 0.32 : 0.21;
-  double random_value;
-
-  double normalized_random = (double)random(0, 1000) / 1000.0;
-
-  random_value = min + normalized_random * (max - min);
-  return random_value;
-}
-
 double movingAverage(double value)
 {
-  const byte nvalues = 5;
+  const byte nvalues = 4; // Moving average window size
 
-  static byte current = 0;
-  static byte cvalues = 0;
-  static double sum = 0;
+  static byte current = 0; // Index for current value
+  static byte cvalues = 0; // Count of values read (<= nvalues)
+  static double sum = 0;   // Rolling sum
   static double values[nvalues];
 
   if (cvalues > 0)
@@ -161,26 +131,17 @@ double movingAverage(double value)
     double diff = abs(value - waterLevel);
     if (diff > 3)
     {
-      value = waterLevel + 0.1;
-    }
-  }
-
-  if (isStopProcess)
-  {
-    double diffChangeSetpoint = abs(value - setpoint);
-    double diffMax = (IS_ESP_2) ? 0.32 : 0.21;
-    if (diffChangeSetpoint > diffMax)
-    {
-      value = setpoint + diffStop;
+      value = (value > waterLevel) ? waterLevel + 0.3 : waterLevel - 0.3;
     }
   }
 
   sum += value;
 
+  // If the window is full, adjust the sum by deleting the oldest value
   if (cvalues == nvalues)
     sum -= values[current];
 
-  values[current] = value;
+  values[current] = value; // Replace the oldest with the latest
 
   if (++current >= nvalues)
     current = 0;
@@ -228,25 +189,11 @@ void sendStatus(String status)
   String json;
   serializeJson(doc, json);
 
-  http.begin(wifiClient, "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "/api/device/status");
+  http.begin(wifiClient, "http://" + String(SERVER_HOST) + ":8080/api/device/status");
   http.addHeader("Content-Type", "application/json");
-  http.POST(json);
-  http.end();
-}
 
-void sendResetProcess(String status)
-{
-  DynamicJsonDocument doc(200);
-  doc["deviceId"] = CLIENT_ID;
-  doc["status"] = status;
-  doc["userId"] = currentUserId;
-
-  String json;
-  serializeJson(doc, json);
-
-  http.begin(wifiClient, "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "/api/device/reset-process");
-  http.addHeader("Content-Type", "application/json");
-  http.POST(json);
+  int statusCode = http.POST(json);
+  Serial.println("Status code: " + statusCode);
   http.end();
 }
 
@@ -260,7 +207,7 @@ void sendFirstDisplayData()
   serializeJson(doc, json);
   Serial.println(json);
 
-  http.begin(wifiClient, "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "/api/device/send-first-data");
+  http.begin(wifiClient, "http://" + String(SERVER_HOST) + ":8080/api/device/send-first-data");
   http.addHeader("Content-Type", "application/json");
 
   http.POST(json);
@@ -282,7 +229,7 @@ String sendDataToUser()
   serializeJson(doc, json);
   Serial.println(json);
 
-  http.begin(wifiClient, "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT) + "/api/device/send-data");
+  http.begin(wifiClient, "http://" + String(SERVER_HOST) + ":8080/api/device/send-data");
   http.addHeader("Content-Type", "application/json");
 
   int httpResponseCode = http.POST(json);
@@ -413,22 +360,6 @@ void returnWaterLevelTo_0()
   stopMotor_OUT();
 }
 
-int calculatePWM_PumpOut()
-{
-  if (percentage != 0)
-  {
-    if (waterLevel <= 5.5)
-    {
-      return 120;
-    }
-    else
-    {
-      return map(waterLevel, 5, 30, 120, 100);
-    }
-  }
-  return 0;
-}
-
 void setPWM_Pumper_OUT(double pwm)
 {
   pwm_Pumper_OUT = pwm;
@@ -486,9 +417,6 @@ void handleTextMessageReceived(String text)
     isStopProcess = false;
     isOffset = false;
     isTargetSetpoint = false;
-    diffStop = calculateDiffStop();
-    isValidKpMinVar = isValidKpMin();
-    isValidKpMaxVar = isValidKpMax();
   }
   else if (ACTION.equals("STOP_MEASUREMENT"))
   {
@@ -498,27 +426,6 @@ void handleTextMessageReceived(String text)
   else if (ACTION.equals("SEND_PUMP_OUT_SIGNAL"))
   {
     percentage = jsonMessage["content"].as<int>();
-    if (isStopProcess) {
-      if (percentage != 0) {
-        isStopProcess = false;
-      }
-    }
-    int pwm = calculatePWM_PumpOut();
-    setPWM_Pumper_OUT(pwm);
-  }
-  else if (ACTION.equals("RESTART_CONTROL_PROCESS"))
-  {
-    stopMotor_IN();
-    stopMotor_OUT();
-    isAllowMeasured = false;
-    isOffset = false;
-    isStopProcess = false;
-    isTargetSetpoint = false;
-    notificationLedESP32();
-    sendResetProcess(RESET_STATUS_START);
-    returnWaterLevelTo_0();
-    sendResetProcess(RESET_STATUS_FINISH);
-    sendFirstDisplayData();
   }
 }
 
@@ -594,159 +501,6 @@ int mapPWM(double xControlValue, double min, double max, int outputMin, int outp
   return (int)(((xControlValue - min) / (max - min)) * (outputMax - outputMin) + outputMin);
 }
 
-bool isValidKpMin()
-{
-  if (setpoint <= 5)
-  {
-    return kp > 0.4;
-  }
-  else if (setpoint <= 10)
-  {
-    return kp > 0.5;
-  }
-  else if (setpoint <= 15)
-  {
-    return kp > 0.6;
-  }
-  else if (setpoint <= 20)
-  {
-    return kp > 0.8;
-  }
-  else if (setpoint <= 25)
-  {
-    return kp > 1.3;
-  }
-  else
-  {
-    return kp > 1.5;
-  }
-}
-
-bool isValidKpMax()
-{
-  if (setpoint <= 5)
-  {
-    return kp < 0.51;
-  }
-  else if (setpoint <= 10)
-  {
-    return kp < 0.61;
-  }
-  else if (setpoint <= 15)
-  {
-    return kp < 0.86;
-  }
-  else if (setpoint <= 20)
-  {
-    return kp <= 1.41;
-  }
-  else if (setpoint <= 25)
-  {
-    return kp < 1.61;
-  }
-  else
-  {
-    return kp < 2;
-  }
-}
-
-int offsetBalancePWMwhenNoise(double setpointValue)
-{
-  return 0.009999999999999912 * setpointValue * setpointValue + 0.9900000000000034 * setpointValue - 4;
-}
-
-int pwmBalanceWhenNoNoise()
-{
-  if (setpoint <= 10)
-  {
-    return map(setpoint, 5, 10, 20, 80);
-  }
-  else if (setpoint <= 15)
-  {
-    return map(setpoint, 11, 15, 80, 94);
-  }
-  else if (setpoint <= 20)
-  {
-    return map(setpoint, 16, 20, 90, 97);
-  }
-  else if (setpoint <= 25)
-  {
-    return map(setpoint, 21, 25, 100, 105);
-  }
-  else
-  {
-    return 108;
-  }
-}
-
-int offsetReturnToSetpointPWMWhenNotTargetSetpoint()
-{
-  int offsetPwm;
-  if (setpoint <= 5)
-  {
-    offsetPwm = 20;
-  }
-  else if (setpoint <= 10)
-  {
-    offsetPwm = 27;
-  }
-  else if (setpoint <= 15)
-  {
-    offsetPwm = 30;
-  }
-  else if (setpoint <= 18)
-  {
-    offsetPwm = 38;
-  }
-  else if (setpoint <= 20)
-  {
-    offsetPwm = 40;
-  }
-  else if (setpoint <= 22)
-  {
-    offsetPwm = 44;
-  }
-  else
-  {
-    offsetPwm = 48;
-  }
-  return offsetPwm;
-}
-
-int offsetReturnToSetpointPwmWhenTargetSetpoint()
-{
-  int offsetPwm;
-  if (setpoint <= 5)
-  {
-    offsetPwm = 18;
-  }
-  else if (setpoint <= 10)
-  {
-    offsetPwm = 23;
-  }
-  else if (setpoint <= 15)
-  {
-    offsetPwm = 28;
-  }
-  else if (setpoint <= 18)
-  {
-    offsetPwm = 34;
-  }
-  else if (setpoint <= 20)
-  {
-    offsetPwm = 38;
-  }
-  else if (setpoint <= 22)
-  {
-    offsetPwm = 44;
-  }
-  else
-  {
-    offsetPwm = 48;
-  }
-  return offsetPwm;
-}
-
 int mapToPWM()
 {
   Serial.print("X-control: ");
@@ -755,120 +509,11 @@ int mapToPWM()
   Serial.println(setpoint);
 
   int pwm = mapPWM(x_control, 0, setpoint, 85, 255);
-  Serial.print("PWM PUMPER IN BEFORE CALCULATE: ");
-  Serial.println(pwm);
-  if (percentage != 0)
-  {
-    if (x_control < setpoint * kp * 0.3 && isTargetSetpoint)
-    {
-      Serial.println("x_control < setpoint * kp * 0.15: TRUE");
-      double decrease = isValidKpMaxVar ? 2.2 : 1.4;
-      if (!isOffset && waterLevel < setpoint - decrease)
-      {
-        isOffset = true;
-      }
-      if (isOffset && waterLevel >= setpoint + 0.2)
-      {
-        isOffset = false;
-        isStopProcess = true;
-      }
-    }
-    else
-    {
-      Serial.println("x_control < setpoint * kp * 0.3: FALSE");
-      if (waterLevel < setpoint)
-      {
-        if (isValidKpMaxVar)
-        {
-          int offsetPwm = offsetReturnToSetpointPWMWhenNotTargetSetpoint();
 
-          if (isValidKpMinVar)
-          {
-            if (pwm - pwm_Pumper_OUT < offsetPwm)
-            {
-              pwm = pwm_Pumper_OUT + offsetPwm;
-              Serial.print("DANG OFFSET CHUA DAT SETPOINT: ");
-              Serial.print(offsetPwm);
-            }
-          }
-          else
-          {
-            if (waterLevel >= (setpoint - 2.9)) // RANDOM
-            {
-              Serial.println("RUN HERE");
-              pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint);
-            }
-          }
-        }
-      }
-      else
-      {
-        isTargetSetpoint = true;
-        if (isValidKpMaxVar)
-        {
-          pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint);
-        }
-      }
-    }
-
-    if (isOffset)
-    {
-      pwm = pwm_Pumper_OUT + offsetReturnToSetpointPwmWhenTargetSetpoint();
-      Serial.println("IS OFFSET IS RUNNING");
-    }
-    else
-    {
-      Serial.println("IS OFFSET IS STOP");
-    }
-  }
-  else
-  {
-    if (!isValidKpMinVar)
-    {
-      if (waterLevel >= setpoint - 2.3)
-      {
-        pwm = pwmBalanceWhenNoNoise();
-      }
-    }
-    else
-    {
-      if (!isValidKpMaxVar)
-      {
-        if (waterLevel >= setpoint + 3.5)
-        {
-          pwm = pwmBalanceWhenNoNoise();
-        }
-      }
-      else
-      {
-        if (waterLevel >= setpoint + 0.2)
-        {
-          isStopProcess = true;
-        }
-      }
-    }
-  }
-  if (isStopProcess)
-  {
-    Serial.println("IS STOP PROCESS RUNNING");
-    if (percentage != 0)
-    {
-      pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint);
-    }
-    else
-    {
-      pwm = pwmBalanceWhenNoNoise();
-    }
-  }
-
+  
   if (pwm > 255)
   {
     pwm = 255;
-  }
-
-  if (waterLevel > 27)
-  {
-    pwm = 85;
   }
 
   return pwm;
@@ -922,10 +567,12 @@ void loop()
   if (webSocketClient.isConnected())
   {
     waterLevel = getCurrentWaterLevelMeasurement();
+    delay(200);
     if (percentage != 0 && !currentUserId.equals("NONE"))
     {
-      pwm_Pumper_OUT = calculatePWM_PumpOut();
-      controlWithSpeedMotor_OUT(pwm_Pumper_OUT);
+      int pwm = map(percentage, 0, 100, 0, 102);
+      setPWM_Pumper_OUT(pwm);
+      controlWithSpeedMotor_OUT(pwm);
       if (!isAllowMeasured)
       {
         sendFirstDisplayData();
@@ -938,6 +585,7 @@ void loop()
 
     if (isAllowMeasured)
     {
+
       response = sendDataToUser();
       if (!(response.equals("NONE") || response.equals("-1")))
       {
@@ -952,7 +600,7 @@ void loop()
     {
       stopMotor_IN();
     }
-    delay(200);
+
   }
   else
   {
@@ -960,4 +608,17 @@ void loop()
     stopMotor_IN();
     stopMotor_OUT();
   }
+
+  // waterLevel = getCurrentWaterLevelMeasurement();
+  // Serial.println(waterLevel);
+  // delay(1200);
+
+  // if(waterLevel >= 10) {
+  //   stopMotor_IN();
+  // } else {
+  //   controlWithSpeedMotor_IN(200);
+  // }
+
+  // controlWithSpeedMotor_IN(102);
+  // controlWithSpeedMotor_OUT(10);
 }

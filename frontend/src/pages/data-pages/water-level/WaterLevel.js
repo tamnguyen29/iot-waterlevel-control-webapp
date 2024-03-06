@@ -9,6 +9,7 @@ import MainCard from 'components/MainCard';
 import services from 'apis/index';
 import WaterLevelDataDisplay from './WaterLevelDataDisplay';
 import ESP32Image from 'assets/images/devices/esp32.jpg';
+import { deleteWaterLevelDataSuccess } from 'store/reducers/waterLevelReducer';
 // ==============================|| WATER LEVEL PAGE ||============================== //
 
 const WaterLevel = () => {
@@ -31,6 +32,7 @@ const WaterLevel = () => {
   }, []);
   const handleClosePopup = () => {
     setOpenPopup(false);
+    dispatch(deleteWaterLevelDataSuccess());
   };
 
   const getDataControl = async () => {

@@ -1,13 +1,14 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { Box, Stack, Button, CircularProgress } from '@mui/material';
-import { useState, useEffect } from 'react';
+import { Box, Stack, Button, CircularProgress, Divider } from '@mui/material';
+import { useState, useEffect, Fragment } from 'react';
 import { toast } from 'react-toastify';
 import services from 'apis/index';
 import { createJWTAxios } from 'apis/createInstance';
 import ControlParameterSelection from './ControlParameterSelection';
 import ControlParameterAction from './ControlParameterAction';
 import RadialBarWaterLevelChart from './RadialBarWaterLevelChart';
-import PumpOut from './PumpOut';
+import Noise from './Noise';
+import ConfirmControlProcessAction from './ConfirmControlProcessAction';
 
 const ControlParameter = () => {
   const [controlUnit, setControlUnit] = useState(null);
@@ -16,11 +17,16 @@ const ControlParameter = () => {
   const operationAction = useSelector((state) => state.device.deviceAction);
   const dispatch = useDispatch();
   const jwtAxios = createJWTAxios(loginUser, dispatch);
-
+  const [confirmControlAction, setConfirmControlAction] = useState({
+    action: '',
+    openConfirmPopup: false
+  });
+  const [isNoiseChecked, setIsNoiseChecked] = useState(false);
+  console.log('Device action', operationAction);
   useEffect(() => {
     services.getAllControlUnit(loginUser.user.id, jwtAxios, dispatch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loginUser.user.id, jwtAxios, dispatch]);
+  }, [loginUser.user.id]);
   const handleStopMeasurement = async () => {
     await services.stopMeasurement(jwtAxios, dispatch, currentUsingDevice?.device.id, loginUser.user.id);
   };
@@ -32,33 +38,90 @@ const ControlParameter = () => {
     }
   };
 
+  const handleRestartProcess = async () => {
+    await services.restartProcess(jwtAxios, dispatch, currentUsingDevice.device.id, loginUser.user.id);
+  };
+
   const handleControlUnitChange = (value) => {
     setControlUnit(value);
   };
+
+  const handleCloseConfirmControlActionPopup = () => {
+    setConfirmControlAction((prev) => ({
+      ...prev,
+      openConfirmPopup: false
+    }));
+  };
+
+  const handleOpenPopupConfirmStartMeasurement = () => {
+    setConfirmControlAction((prev) => ({
+      ...prev,
+      action: 'start',
+      openConfirmPopup: true
+    }));
+  };
+
+  const handleOpenPopupConfirmStopMeasurement = () => {
+    setConfirmControlAction((prev) => ({
+      ...prev,
+      action: 'stop',
+      openConfirmPopup: true
+    }));
+  };
+
+  const handleOpenPopupConfirmRestartProcess = () => {
+    setConfirmControlAction((prev) => ({
+      ...prev,
+      action: 'restart',
+      openConfirmPopup: true
+    }));
+  };
+
+  const handleSendNoise = async () => {
+    const value = isNoiseChecked ? 100 : 0;
+    await services.sendPumpOutSignal(jwtAxios, dispatch, loginUser.user.id, currentUsingDevice.device.id, value);
+  };
+
   return (
     <Box sx={{ p: 3 }}>
+      <Fragment>
+        <ConfirmControlProcessAction
+          action={confirmControlAction.action}
+          openConfirmControlProcessAction={confirmControlAction.openConfirmPopup}
+          handleCloseConfirmControlProcessAction={handleCloseConfirmControlActionPopup}
+          handleStartMeasurement={handleStartMeasurement}
+          handleStopMeasurement={handleStopMeasurement}
+          handleRestartProcess={handleRestartProcess}
+          controlUnitChosen={controlUnit}
+          isNoiseChecked={isNoiseChecked}
+        />
+      </Fragment>
       <Stack spacing={2} direction="column">
         <ControlParameterAction controlUnit={controlUnit} handleControlUnitChange={handleControlUnitChange} />
         <ControlParameterSelection controlUnit={controlUnit} handleControlUnitChange={handleControlUnitChange} />
         <RadialBarWaterLevelChart />
-        <PumpOut />
+        <Divider />
+        <Noise isNoiseChecked={isNoiseChecked} setIsNoiseChecked={setIsNoiseChecked} handleSendNoise={handleSendNoise} />
         <Button
           variant="contained"
           color="success"
-          onClick={handleStartMeasurement}
+          onClick={handleOpenPopupConfirmStartMeasurement}
           fullWidth
-          disabled={operationAction.startMeasurement.isStarting}
+          disabled={operationAction.startMeasurement.isDisable}
         >
-          {operationAction.startMeasurement.isStarting ? <CircularProgress color="inherit" size={25} thickness={4} /> : 'Start measurement'}
+          START MEASUREMENT
         </Button>
         <Button
           variant="contained"
           color="error"
-          onClick={handleStopMeasurement}
+          onClick={handleOpenPopupConfirmStopMeasurement}
           fullWidth
-          disabled={operationAction.stopMeasurement.isStarting}
+          disabled={operationAction.stopMeasurement.isDisable}
         >
-          {operationAction.stopMeasurement.isStarting ? <CircularProgress color="inherit" size={25} thickness={4} /> : 'Stop measurement'}
+          STOP MEASUREMENT
+        </Button>
+        <Button variant="contained" color="warning" onClick={handleOpenPopupConfirmRestartProcess} fullWidth>
+          RESTART PROCESS
         </Button>
       </Stack>
     </Box>
