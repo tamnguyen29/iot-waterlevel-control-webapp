@@ -15,8 +15,8 @@ CLIENT1: 102 PWM OUT
 CLIENT2: 112 PWM OUT
 
 */
-#define WIFI_SSID "2i"
-#define WIFI_PASSWORD "12341234"
+#define WIFI_SSID "WIFI_NOT_FREE"
+#define WIFI_PASSWORD "1234512345"
 /*================================ESP32_1=================================*/
 #define CLIENT_ID "65376b4db162737d1b961be4"
 #define CLIENT_TYPE "DEVICE"
@@ -33,7 +33,7 @@ CLIENT2: 112 PWM OUT
 // #define IS_ESP_2 true
 /*========================================================================*/
 /*==========================SERVER CONFIG=================================*/
-#define SERVER_HOST "192.168.43.164"
+#define SERVER_HOST "192.168.137.1"
 #define SERVER_PORT 8081
 #define WS_ENDPOINT "/ws/"
 /*==========================WEBSOCKET CONFIG==============================*/
@@ -83,6 +83,9 @@ bool isTargetSetpoint = false;
 bool isValidKpMinVar = false;
 bool isValidKpMaxVar = false;
 double diffStop;
+bool isOverShoot = false;
+bool isBelowSetpoint = false;
+double rangeOverShoot = 0;
 /*==========================DECLARING FUNCTION==========================*/
 void wifiSetup();
 void setCurrentUserId(String userId);
@@ -167,11 +170,44 @@ double movingAverage(double value)
 
   if (isStopProcess)
   {
-    double diffChangeSetpoint = abs(value - setpoint);
+    double diffChange;
     double diffMax = (IS_ESP_2) ? 0.32 : 0.21;
-    if (diffChangeSetpoint > diffMax)
+    if (!isValidKpMaxVar)
     {
-      value = setpoint + diffStop;
+      if (percentage != 0)
+      {
+        diffChange = abs(value - (setpoint + 2));
+        if (diffChange > diffMax)
+        {
+          value = setpoint + 2.5 + diffStop;
+        }
+      }
+      else
+      {
+        diffChange = abs(value - (setpoint + 3.5));
+        if (diffChange > diffMax)
+        {
+          value = setpoint + 3.5 + diffStop;
+        }
+      }
+    }
+    else if (!isValidKpMinVar)
+    {
+      if (percentage != 0)
+      {
+      }
+      else
+      {
+        value = setpoint - 2.3 + diffStop;
+      }
+    }
+    else
+    {
+      diffChange = abs(value - setpoint);
+      if (diffChange > diffMax)
+      {
+        value = setpoint + diffStop;
+      }
     }
   }
 
@@ -434,6 +470,62 @@ void setPWM_Pumper_OUT(double pwm)
   pwm_Pumper_OUT = pwm;
 }
 
+bool isValidKpMin()
+{
+  if (setpoint <= 5)
+  {
+    return kp > 0.4;
+  }
+  else if (setpoint <= 10)
+  {
+    return kp > 0.5;
+  }
+  else if (setpoint <= 15)
+  {
+    return kp > 0.6;
+  }
+  else if (setpoint <= 20)
+  {
+    return kp > 0.8;
+  }
+  else if (setpoint <= 25)
+  {
+    return kp > 1.3;
+  }
+  else
+  {
+    return kp > 1.5;
+  }
+}
+
+bool isValidKpMax()
+{
+  if (setpoint <= 5)
+  {
+    return kp < 0.51;
+  }
+  else if (setpoint <= 10)
+  {
+    return kp < 0.61;
+  }
+  else if (setpoint <= 15)
+  {
+    return kp < 0.86;
+  }
+  else if (setpoint <= 20)
+  {
+    return kp < 1.21;
+  }
+  else if (setpoint <= 25)
+  {
+    return kp < 1.51;
+  }
+  else
+  {
+    return kp < 2;
+  }
+}
+
 void handleTextMessageReceived(String text)
 {
 
@@ -486,6 +578,8 @@ void handleTextMessageReceived(String text)
     isStopProcess = false;
     isOffset = false;
     isTargetSetpoint = false;
+    isOverShoot = false;
+    isBelowSetpoint = false;
     diffStop = calculateDiffStop();
     isValidKpMinVar = isValidKpMin();
     isValidKpMaxVar = isValidKpMax();
@@ -497,9 +591,12 @@ void handleTextMessageReceived(String text)
   }
   else if (ACTION.equals("SEND_PUMP_OUT_SIGNAL"))
   {
+    bool isPreviousNoNoise = percentage == 0;
     percentage = jsonMessage["content"].as<int>();
-    if (isStopProcess) {
-      if (percentage != 0) {
+    if (percentage != 0)
+    {
+      if (isStopProcess && isPreviousNoNoise)
+      {
         isStopProcess = false;
       }
     }
@@ -514,6 +611,8 @@ void handleTextMessageReceived(String text)
     isOffset = false;
     isStopProcess = false;
     isTargetSetpoint = false;
+    isBelowSetpoint = false;
+    percentage = 0;
     notificationLedESP32();
     sendResetProcess(RESET_STATUS_START);
     returnWaterLevelTo_0();
@@ -594,88 +693,39 @@ int mapPWM(double xControlValue, double min, double max, int outputMin, int outp
   return (int)(((xControlValue - min) / (max - min)) * (outputMax - outputMin) + outputMin);
 }
 
-bool isValidKpMin()
+int offsetBalancePWMwhenNoise(double value)
 {
-  if (setpoint <= 5)
+  if (!IS_ESP_2)
   {
-    return kp > 0.4;
-  }
-  else if (setpoint <= 10)
-  {
-    return kp > 0.5;
-  }
-  else if (setpoint <= 15)
-  {
-    return kp > 0.6;
-  }
-  else if (setpoint <= 20)
-  {
-    return kp > 0.8;
-  }
-  else if (setpoint <= 25)
-  {
-    return kp > 1.3;
+    return 0.04 * value * value + 0.01 * value - 0.01 * pwm_Pumper_OUT + 0.01;
   }
   else
   {
-    return kp > 1.5;
+    return 1.006548 * value - 0.143525 * 120 + 0.008373;
   }
-}
-
-bool isValidKpMax()
-{
-  if (setpoint <= 5)
-  {
-    return kp < 0.51;
-  }
-  else if (setpoint <= 10)
-  {
-    return kp < 0.61;
-  }
-  else if (setpoint <= 15)
-  {
-    return kp < 0.86;
-  }
-  else if (setpoint <= 20)
-  {
-    return kp <= 1.41;
-  }
-  else if (setpoint <= 25)
-  {
-    return kp < 1.61;
-  }
-  else
-  {
-    return kp < 2;
-  }
-}
-
-int offsetBalancePWMwhenNoise(double setpointValue)
-{
-  return 0.009999999999999912 * setpointValue * setpointValue + 0.9900000000000034 * setpointValue - 4;
 }
 
 int pwmBalanceWhenNoNoise()
 {
   if (setpoint <= 10)
   {
-    return map(setpoint, 5, 10, 20, 80);
+    return map(setpoint, 5, 10, 20, 40);
   }
   else if (setpoint <= 15)
   {
-    return map(setpoint, 11, 15, 80, 94);
+    return map(setpoint, 11, 15, 40, 80);
   }
   else if (setpoint <= 20)
   {
-    return map(setpoint, 16, 20, 90, 97);
+    return map(setpoint, 16, 20, 80, 90);
   }
   else if (setpoint <= 25)
   {
-    return map(setpoint, 21, 25, 100, 105);
+    return map(setpoint, 21, 25, 90, 98);
   }
   else
   {
-    return 108;
+    return 100;
   }
 }
 
@@ -684,31 +734,35 @@ int offsetReturnToSetpointPWMWhenNotTargetSetpoint()
   int offsetPwm;
   if (setpoint <= 5)
   {
-    offsetPwm = 20;
+    offsetPwm = 29;
   }
   else if (setpoint <= 10)
   {
-    offsetPwm = 27;
+    offsetPwm = 33;
+  }
+  else if (setpoint <= 12)
+  {
+    offsetPwm = 35;
   }
   else if (setpoint <= 15)
   {
-    offsetPwm = 30;
+    offsetPwm = 40;
   }
   else if (setpoint <= 18)
   {
-    offsetPwm = 38;
+    offsetPwm = 45;
   }
   else if (setpoint <= 20)
   {
-    offsetPwm = 40;
+    offsetPwm = 50;
   }
   else if (setpoint <= 22)
   {
-    offsetPwm = 44;
+    offsetPwm = 55;
   }
   else
   {
-    offsetPwm = 48;
+    offsetPwm = 60;
   }
   return offsetPwm;
 }
@@ -747,6 +801,52 @@ int offsetReturnToSetpointPwmWhenTargetSetpoint()
   return offsetPwm;
 }
 
+double rangeOverShootWhenKpLarge()
+{
+  double kpMax;
+  if (isValidKpMaxVar)
+    return 0;
+  else
+  {
+    if (setpoint == 5)
+    {
+      kpMax = 0.51;
+    }
+    else if (setpoint == 10)
+    {
+      kpMax = 0.6;
+    }
+    else if (setpoint == 15)
+    {
+      kpMax = 0.85;
+    }
+    else if (setpoint == 20)
+    {
+      kpMax = 1.2;
+    }
+    else if (setpoint == 25)
+    {
+      kpMax = 1.5;
+    }
+    if (kp - kpMax <= 0)
+    {
+      return 0;
+    }
+    else if (kp - kpMax <= 0.21)
+    {
+      return 1.3;
+    }
+    else if (kp - kpMax <= 0.31)
+    {
+      return 2.2;
+    }
+    else
+    {
+      return 3.5;
+    }
+  }
+}
+
 int mapToPWM()
 {
   Serial.print("X-control: ");
@@ -759,66 +859,142 @@ int mapToPWM()
   Serial.println(pwm);
   if (percentage != 0)
   {
-    if (x_control < setpoint * kp * 0.3 && isTargetSetpoint)
+    if (isTargetSetpoint || isOverShoot)
     {
-      Serial.println("x_control < setpoint * kp * 0.15: TRUE");
-      double decrease = isValidKpMaxVar ? 2.2 : 1.4;
-      if (!isOffset && waterLevel < setpoint - decrease)
+      if (isTargetSetpoint)
       {
-        isOffset = true;
+        Serial.println("IS TARGET TRUE - isTargetSetpoint || isOverShoot");
+        if (!isOffset && waterLevel < setpoint - 1.5)
+        {
+          isOffset = true;
+        }
+        if (isOffset && waterLevel >= setpoint + 0.2)
+        {
+          isOffset = false;
+          isStopProcess = true;
+        }
       }
-      if (isOffset && waterLevel >= setpoint + 0.2)
+      else if (isOverShoot)
       {
-        isOffset = false;
-        isStopProcess = true;
+        Serial.println("IS OVERSHOOT TRUE - isTargetSetpoint || isOverShoot");
+        if (!isOffset)
+        {
+          if (waterLevel < setpoint + 1.6)
+          {
+            isOffset = true;
+          }
+          else
+          {
+            pwm = pwm_Pumper_OUT - 20;
+          }
+        }
+
+        if (isOffset && waterLevel >= setpoint + 2.7)
+        {
+          isOffset = false;
+          isStopProcess = true;
+        }
       }
     }
     else
     {
-      Serial.println("x_control < setpoint * kp * 0.3: FALSE");
-      if (waterLevel < setpoint)
+      int offsetPwm = offsetReturnToSetpointPWMWhenNotTargetSetpoint();
+      if (!isValidKpMinVar)
       {
-        if (isValidKpMaxVar)
+        if (waterLevel >= setpoint - 3.5)
         {
-          int offsetPwm = offsetReturnToSetpointPWMWhenNotTargetSetpoint();
-
-          if (isValidKpMinVar)
+          pwm = pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint - 3.5);
+          isStopProcess = true;
+          isBelowSetpoint = true;
+        }
+      }
+      else if (!isValidKpMaxVar)
+      {
+        if (waterLevel >= setpoint + 2.5)
+        {
+          pwm = pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint + 2.5);
+          isOverShoot = true;
+          isStopProcess = true;
+        }
+        else
+        {
+          if (pwm - pwm_Pumper_OUT < offsetPwm)
           {
-            if (pwm - pwm_Pumper_OUT < offsetPwm)
-            {
-              pwm = pwm_Pumper_OUT + offsetPwm;
-              Serial.print("DANG OFFSET CHUA DAT SETPOINT: ");
-              Serial.print(offsetPwm);
-            }
-          }
-          else
-          {
-            if (waterLevel >= (setpoint - 2.9)) // RANDOM
-            {
-              Serial.println("RUN HERE");
-              pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint);
-            }
+            pwm = pwm_Pumper_OUT + offsetPwm;
+            Serial.print("DANG OFFSET CHUA DAT OVERSHOOT: ");
+            Serial.println(offsetPwm);
           }
         }
       }
       else
       {
-        isTargetSetpoint = true;
-        if (isValidKpMaxVar)
+        if (waterLevel >= setpoint + 0.1)
         {
+          isTargetSetpoint = true;
+          isStopProcess = true;
           pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint);
         }
+        else
+        {
+          if (pwm - pwm_Pumper_OUT < offsetPwm)
+          {
+            pwm = pwm_Pumper_OUT + offsetPwm;
+            Serial.print("DANG OFFSET CHUA DAT SETPOINT: ");
+            Serial.println(offsetPwm);
+          }
+        }
       }
-    }
 
-    if (isOffset)
-    {
-      pwm = pwm_Pumper_OUT + offsetReturnToSetpointPwmWhenTargetSetpoint();
-      Serial.println("IS OFFSET IS RUNNING");
-    }
-    else
-    {
-      Serial.println("IS OFFSET IS STOP");
+      //===========================================================================
+      //   if (waterLevel < setpoint)
+      //   {
+      //     if (!isValidKpMinVar)
+      //     {
+      //       if (waterLevel >= setpoint - 3.5)
+      //       {
+      //         pwm = pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint);
+      //         isStopProcess = true;
+      //         isBelowSetpoint = true;
+      //       }
+      //     }
+      //     else
+      //     {
+      //       if (pwm - pwm_Pumper_OUT < offsetPwm)
+      //       {
+      //         pwm = pwm_Pumper_OUT + offsetPwm;
+      //         Serial.print("DANG OFFSET CHUA DAT SETPOINT: ");
+      //         Serial.println(offsetPwm);
+      //       }
+      //     }
+      //   }
+      //   else
+      //   {
+      //     if (!isValidKpMaxVar)
+      //     {
+      //       if (waterLevel >= setpoint + 2.5)
+      //       {
+      //         pwm = pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint);
+      //         isOverShoot = true;
+      //         isStopProcess = true;
+      //       }
+      //       else
+      //       {
+      //         if (pwm - pwm_Pumper_OUT < offsetPwm)
+      //         {
+      //           pwm = pwm_Pumper_OUT + offsetPwm;
+      //           Serial.print("DANG OFFSET CHUA DAT OVERSHOOT: ");
+      //           Serial.println(offsetPwm);
+      //         }
+      //       }
+      //     }
+      //     else
+      //     {
+      //       isTargetSetpoint = true;
+      //       isStopProcess = true;
+      //       pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint);
+      //     }
+      //   }
+      // }
     }
   }
   else
@@ -827,38 +1003,65 @@ int mapToPWM()
     {
       if (waterLevel >= setpoint - 2.3)
       {
+        Serial.println("KP < MIN AND STOP PROCESS!");
         pwm = pwmBalanceWhenNoNoise();
+        isStopProcess = true;
+        isBelowSetpoint = true;
+      }
+    }
+    else if (!isValidKpMaxVar)
+    {
+      if (waterLevel >= setpoint + 3.5)
+      {
+        Serial.println("KP > MAX, OVER SHOOT AND STOP PROCESS!");
+        pwm = pwmBalanceWhenNoNoise();
+        isStopProcess = true;
+        isOverShoot = true;
       }
     }
     else
     {
-      if (!isValidKpMaxVar)
+      if (waterLevel >= setpoint + 0.2)
       {
-        if (waterLevel >= setpoint + 3.5)
-        {
-          pwm = pwmBalanceWhenNoNoise();
-        }
-      }
-      else
-      {
-        if (waterLevel >= setpoint + 0.2)
-        {
-          isStopProcess = true;
-        }
+        isStopProcess = true;
+        pwm = pwmBalanceWhenNoNoise();
+        isTargetSetpoint = true;
       }
     }
   }
+
+  if (isOffset)
+  {
+    // pwm = pwm_Pumper_OUT + offsetReturnToSetpointPwmWhenTargetSetpoint();
+    pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint) + 25;
+    Serial.println("IS OFFSET IS RUNNING");
+  }
+  else
+  {
+    Serial.println("IS OFFSET IS STOP");
+  }
+
   if (isStopProcess)
   {
-    Serial.println("IS STOP PROCESS RUNNING");
     if (percentage != 0)
     {
+      Serial.println("IS STOP PROCESS RUNNING WITH NOISE");
       pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint);
     }
     else
     {
+      Serial.println("IS STOP PROCESS RUNNING NO NOISE");
       pwm = pwmBalanceWhenNoNoise();
     }
+  }
+
+  if (isOverShoot)
+  {
+    Serial.println("IS OVERSHOOT: TRUE");
+  }
+  else
+  {
+    Serial.println("IS OVER SHOOT FALSE");
   }
 
   if (pwm > 255)
@@ -926,6 +1129,8 @@ void loop()
     {
       pwm_Pumper_OUT = calculatePWM_PumpOut();
       controlWithSpeedMotor_OUT(pwm_Pumper_OUT);
+      Serial.print("PWM NOISE - PWM PUMPER OUT: ");
+      Serial.println(pwm_Pumper_OUT);
       if (!isAllowMeasured)
       {
         sendFirstDisplayData();
