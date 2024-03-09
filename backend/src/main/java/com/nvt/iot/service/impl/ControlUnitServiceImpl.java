@@ -2,10 +2,10 @@ package com.nvt.iot.service.impl;
 
 import com.nvt.iot.document.ControlUnitDocument;
 import com.nvt.iot.exception.ControlUnitNameAlreadyExistException;
-import com.nvt.iot.exception.ControlUnitUnableChangeException;
 import com.nvt.iot.exception.NotFoundCustomException;
 import com.nvt.iot.exception.ValidationCustomException;
 import com.nvt.iot.model.ControlData;
+import com.nvt.iot.model.ControlUnit;
 import com.nvt.iot.payload.request.ControlUnitRequest;
 import com.nvt.iot.repository.ControlUnitRepository;
 import com.nvt.iot.repository.DeviceControllerUserRepository;
@@ -76,14 +76,22 @@ public class ControlUnitServiceImpl implements ControlUnitService {
                 .ifPresent(dataControlDoc -> {
                     List<ControlData> controlDataList = dataControlDoc.getControlDataList();
                     controlDataList.forEach((controlData -> {
-                        controlData.getControlUnitList().forEach((controlUnit -> {
-                            if (controlUnit.getId().equals(id)) {
-                                throw new ControlUnitUnableChangeException(
-                                    "Can not edit control unit, your data has been saved!"
-                                );
+                        List<ControlUnit> controlUnitList = controlData.getControlUnitList();
+                        for (int i = 0; i < controlUnitList.size(); i++) {
+                            if (controlUnitList.get(i).getId().equals(id)) {
+                                controlUnitList.set(i, new ControlUnit(
+                                    id,
+                                    controlUnitRequest.getName(),
+                                    controlUnitRequest.getKp(),
+                                    controlUnitRequest.getSetpoint()
+                                ));
+                                break;
                             }
-                        }));
+                        }
+                        controlData.setControlUnitList(controlUnitList);
                     }));
+                    dataControlDoc.setControlDataList(controlDataList);
+                    deviceControllerUserRepository.save(dataControlDoc);
                 });
         controlUnitDoc.setKp(controlUnitRequest.getKp());
         controlUnitDoc.setName(controlUnitRequest.getName());

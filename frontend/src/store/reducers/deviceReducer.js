@@ -42,7 +42,7 @@ const deviceSlice = createSlice({
       state.deviceAction.startMeasurement.isStarting = false;
       state.deviceAction.startMeasurement.isSuccess = true;
       state.deviceAction.startMeasurement.isFailed = false;
-      state.deviceAction.startMeasurement.isDisable = true;
+      state.deviceAction.startMeasurement.isDisable = false;
       state.deviceAction.stopMeasurement.isDisable = false;
     },
     startMeasurementFailed: (state) => {

@@ -51,7 +51,7 @@ const WaterLevelDataDisplay = ({ openPopup, handleClosePopup, waterLevelData, ha
       </IconButton>
     );
   };
-
+  console.log('color', colors);
   const handleShowChart = () => {
     setIsShowChart((prev) => !prev);
   };
@@ -105,8 +105,21 @@ const WaterLevelDataDisplay = ({ openPopup, handleClosePopup, waterLevelData, ha
   };
   const series = [
     {
-      name: 'Water level data',
-      data: (!waterLevelDataDisplay ? waterLevelData.data : waterLevelDataDisplay).map((item) => item.value.toFixed(2))
+      name: 'WATER LEVEL',
+      data: (!waterLevelDataDisplay ? waterLevelData.data : waterLevelDataDisplay).map((item) => item.value.toFixed(2)),
+      color: colors.primary.main
+    },
+    {
+      name: 'ERROR',
+      data: (!waterLevelDataDisplay ? waterLevelData.data : waterLevelDataDisplay).map((item) =>
+        Math.abs(item.value - waterLevelData.setpoint).toFixed(2)
+      ),
+      color: colors.error.main
+    },
+    {
+      name: 'SETPOINT',
+      data: Array(waterLevelData.data.length).fill(waterLevelData.setpoint),
+      color: colors.success.main
     }
   ];
 

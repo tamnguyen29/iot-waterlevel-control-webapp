@@ -608,17 +608,4 @@ void loop()
     stopMotor_IN();
     stopMotor_OUT();
   }
-
-  // waterLevel = getCurrentWaterLevelMeasurement();
-  // Serial.println(waterLevel);
-  // delay(1200);
-
-  // if(waterLevel >= 10) {
-  //   stopMotor_IN();
-  // } else {
-  //   controlWithSpeedMotor_IN(200);
-  // }
-
-  // controlWithSpeedMotor_IN(102);
-  // controlWithSpeedMotor_OUT(10);
 }

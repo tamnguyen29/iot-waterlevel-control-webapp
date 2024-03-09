@@ -22,7 +22,8 @@ const WaterLevel = () => {
   const [waterLevelData, setWaterLevelData] = useState({
     deviceId: '',
     controlUnitId: '',
-    data: []
+    data: [],
+    setpoint: null
   });
   const [openPopup, setOpenPopup] = useState(false);
 
@@ -39,14 +40,16 @@ const WaterLevel = () => {
     const data = await services.getAllControlData(jwtAxios, loginUser.user.id);
     setControlData(data);
   };
-  const handleLoadData = async (id, deviceId) => {
+  const handleLoadData = async (id, deviceId, setpoint) => {
     const data = await services.getWaterLevelData(jwtAxios, loginUser.user.id, id, deviceId);
     setWaterLevelData({
       deviceId: deviceId,
       controlUnitId: id,
-      data: data
+      data: data,
+      setpoint: setpoint
     });
     setOpenPopup(true);
+    console.log('load', setpoint);
   };
 
   const handleDeleteWaterLevelData = async (controlUnitId, deviceId) => {
@@ -89,11 +92,11 @@ const WaterLevel = () => {
       headerAlign: 'center',
       align: 'center',
       flex: 1,
-      renderCell: ({ row: { deviceId, id } }) => {
+      renderCell: ({ row: { deviceId, id, setpoint } }) => {
         return (
           <Button
             fullWidth
-            onClick={() => handleLoadData(id, deviceId)}
+            onClick={() => handleLoadData(id, deviceId, setpoint)}
             sx={{
               color: `${colors.text.primary} !important`,
               backgroundColor: `${colors.primary.light} !important`,
