@@ -15,25 +15,25 @@ CLIENT1: 102 PWM OUT
 CLIENT2: 112 PWM OUT
 
 */
-#define WIFI_SSID "2i"
-#define WIFI_PASSWORD "12341234"
+#define WIFI_SSID "WIFI_NOT_FREE"
+#define WIFI_PASSWORD "1234512345"
 /*================================ESP32_1=================================*/
-#define CLIENT_ID "65376b4db162737d1b961be4"
-#define CLIENT_TYPE "DEVICE"
-#define MINUS_DISTANCE 34.85
-#define PWM_PUMPER_OUT_MAX 105
-#define IS_ESP_2 false
+// #define CLIENT_ID "65376b4db162737d1b961be4"
+// #define CLIENT_TYPE "DEVICE"
+// #define MINUS_DISTANCE 34.85
+// #define PWM_PUMPER_OUT_MAX 105
+// #define IS_ESP_2 false
 /*========================================================================*/
 
 /*================================ESP32_2=================================*/
-// #define CLIENT_ID "64376b4db162737d1b961be4"
-// #define CLIENT_TYPE "DEVICE"
-// #define MINUS_DISTANCE 33.86
-// #define PWM_PUMPER_OUT_MAX 105
-// #define IS_ESP_2 true
+#define CLIENT_ID "64376b4db162737d1b961be4"
+#define CLIENT_TYPE "DEVICE"
+#define MINUS_DISTANCE 33.86
+#define PWM_PUMPER_OUT_MAX 105
+#define IS_ESP_2 true
 /*========================================================================*/
 /*==========================SERVER CONFIG=================================*/
-#define SERVER_HOST "192.168.43.164"
+#define SERVER_HOST "192.168.137.1"
 #define SERVER_PORT 8081
 #define WS_ENDPOINT "/ws/"
 /*==========================WEBSOCKET CONFIG==============================*/
@@ -47,6 +47,8 @@ CLIENT2: 112 PWM OUT
 #define BUSY_STATUS "BUSY"
 #define RESET_STATUS_START "START_RESET"
 #define RESET_STATUS_FINISH "FINISH_RESET"
+#define CAN_NOT_START_MEASUREMENT "CAN_NOT_START"
+#define CAN_START_MEASUREMENT "CAN_START"
 /*========================================================================*/
 
 /*==========================ESP32 CONFIG==================================*/
@@ -219,10 +221,19 @@ double movingAverage(double value)
     {
       if (percentage != 0)
       {
+        diffChange = abs(value - (setpoint - 3.7));
+        if (diffChange > diffMax)
+        {
+          value = setpoint - 3.7 + diffStop;
+        }
       }
       else
       {
-        value = setpoint - 2.3 + diffStop;
+        diffChange = abs(value - (setpoint - 3.1));
+        if (diffChange > diffMax)
+        {
+          value = setpoint - 3.1 + diffStop;
+        }
       }
     }
     else
@@ -284,7 +295,7 @@ void sendStatus(String status)
   DynamicJsonDocument doc(200);
   doc["status"] = status;
   doc["deviceId"] = CLIENT_ID;
-
+  doc["userId"] = currentUserId;
   String json;
   serializeJson(doc, json);
 
@@ -494,25 +505,25 @@ void setPWM_Pumper_OUT(double pwm)
   pwm_Pumper_OUT = pwm;
 }
 
-bool isValidKpMin()
+bool isValidKpMin(double setpointValue)
 {
-  if (setpoint <= 5)
+  if (setpointValue <= 5)
   {
     return kp > 0.4;
   }
-  else if (setpoint <= 10)
+  else if (setpointValue <= 10)
   {
     return kp > 0.46;
   }
-  else if (setpoint <= 15)
+  else if (setpointValue <= 15)
   {
-    return kp > 0.58;
+    return kp > 0.55;
   }
-  else if (setpoint <= 20)
+  else if (setpointValue <= 20)
   {
     return kp > 0.75;
   }
-  else if (setpoint <= 25)
+  else if (setpointValue <= 25)
   {
     return kp > 1.3;
   }
@@ -522,25 +533,25 @@ bool isValidKpMin()
   }
 }
 
-bool isValidKpMax()
+bool isValidKpMax(double setpointValue)
 {
-  if (setpoint <= 5)
+  if (setpointValue <= 5)
   {
     return kp < 0.51;
   }
-  else if (setpoint <= 10)
+  else if (setpointValue <= 10)
   {
-    return kp < 0.62;
+    return kp < 0.65;
   }
-  else if (setpoint <= 15)
+  else if (setpointValue <= 15)
   {
-    return kp < 0.86;
+    return kp < 0.85;
   }
-  else if (setpoint <= 20)
+  else if (setpointValue <= 20)
   {
     return kp < 1.21;
   }
-  else if (setpoint <= 25)
+  else if (setpointValue <= 25)
   {
     return kp < 1.51;
   }
@@ -550,34 +561,37 @@ bool isValidKpMax()
   }
 }
 
+double calculateKpMax()
+{
+  if (setpoint == 5)
+  {
+    return 0.51;
+  }
+  else if (setpoint == 10)
+  {
+    return 0.6;
+  }
+  else if (setpoint == 15)
+  {
+    return 0.85;
+  }
+  else if (setpoint == 20)
+  {
+    return 1.2;
+  }
+  else if (setpoint == 25)
+  {
+    return 1.5;
+  }
+}
+
 bool isKpGreaterThanKpMaxInRangeFunc(double range)
 {
-  double kpMax;
   if (isValidKpMaxVar)
     return false;
   else
   {
-    if (setpoint == 5)
-    {
-      kpMax = 0.51;
-    }
-    else if (setpoint == 10)
-    {
-      kpMax = 0.6;
-    }
-    else if (setpoint == 15)
-    {
-      kpMax = 0.85;
-    }
-    else if (setpoint == 20)
-    {
-      kpMax = 1.2;
-    }
-    else if (setpoint == 25)
-    {
-      kpMax = 1.5;
-    }
-
+    double kpMax = calculateKpMax();
     if (kp - kpMax > range)
     {
       return true;
@@ -626,14 +640,12 @@ void handleTextMessageReceived(String text)
   else if (ACTION.equals("START_MEASUREMENT"))
   {
     Serial.println("START_MEASUREMENT");
+    double preSetpoint = setpoint;
     setCurrentControlUnitId(jsonMessage["content"]["id"]);
     setSetpoint(jsonMessage["content"]["setpoint"]);
     setKp(jsonMessage["content"]["kp"]);
     Serial.println(jsonMessage["content"].as<String>());
 
-    Serial.println("CurrentControlId: " + currentControlUnitId);
-    Serial.println("Setpoint: " + String(setpoint));
-    Serial.println("Kp: " + String(kp));
     isAllowMeasured = true;
     isStopProcess = false;
     isOffset = false;
@@ -641,9 +653,20 @@ void handleTextMessageReceived(String text)
     isOverShoot = false;
     isBelowSetpoint = false;
     diffStop = calculateDiffStop();
-    isValidKpMinVar = isValidKpMin();
-    isValidKpMaxVar = isValidKpMax();
-    isKpGreaterThanKpMaxInRange = isKpGreaterThanKpMaxInRangeFunc(0.25);
+    isValidKpMinVar = isValidKpMin(setpoint);
+    isValidKpMaxVar = isValidKpMax(setpoint);
+    isKpGreaterThanKpMaxInRange = isKpGreaterThanKpMaxInRangeFunc(0.3);
+    if (waterLevel >= setpoint)
+    {
+      sendStatus(CAN_NOT_START_MEASUREMENT);
+      isAllowMeasured = false;
+    }
+    else
+    {
+      sendStatus(CAN_START_MEASUREMENT);
+      isValidKpMaxVar = isValidKpMax(setpoint - preSetpoint + 5);
+      isValidKpMinVar = isValidKpMin(setpoint - preSetpoint + 5);
+    }
   }
   else if (ACTION.equals("STOP_MEASUREMENT"))
   {
@@ -875,7 +898,7 @@ int mapToPWM()
   Serial.println(pwm);
   if (percentage != 0)
   {
-    if (isTargetSetpoint || isOverShoot)
+    if (isTargetSetpoint || isOverShoot || isBelowSetpoint)
     {
       if (isTargetSetpoint)
       {
@@ -936,16 +959,31 @@ int mapToPWM()
           }
         }
       }
+      else if (isBelowSetpoint)
+      {
+        if (!isOffset && waterLevel <= setpoint - 4.2)
+        {
+          isOffset = true;
+        }
+        else
+        {
+          pwm = pwm_Pumper_OUT - 15;
+        }
+
+        if (isOffset && waterLevel >= setpoint - 3.7)
+        {
+          isOffset = false;
+          isStopProcess = true;
+        }
+      }
     }
     else
     {
       int offsetPwm = offsetReturnToSetpointPWMWhenNotTargetSetpoint();
       if (!isValidKpMinVar)
       {
-        if (waterLevel >= setpoint - 3.5)
+        if (waterLevel >= setpoint - 3.1)
         {
-          pwm = pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint - 3.5);
-          isStopProcess = true;
           isBelowSetpoint = true;
         }
       }
@@ -1008,7 +1046,7 @@ int mapToPWM()
   {
     if (!isValidKpMinVar)
     {
-      if (waterLevel >= setpoint - 2.3)
+      if (waterLevel >= setpoint - 3.1)
       {
         Serial.println("KP < MIN AND STOP PROCESS!");
         isStopProcess = true;
@@ -1049,7 +1087,7 @@ int mapToPWM()
   if (isOffset)
   {
     // pwm = pwm_Pumper_OUT + offsetReturnToSetpointPwmWhenTargetSetpoint();
-    pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint) + 25;
+    pwm = pwm_Pumper_OUT + offsetBalancePWMwhenNoise(setpoint) + 17;
     Serial.println("IS OFFSET IS RUNNING");
   }
   else
@@ -1176,8 +1214,8 @@ void loop()
     else
     {
       stopMotor_IN();
+      delay(300);
     }
-    delay(200);
   }
   else
   {

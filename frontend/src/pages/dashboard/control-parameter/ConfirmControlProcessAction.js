@@ -24,10 +24,10 @@ const ConfirmControlProcessAction = ({
   const restartProcessState = useSelector((state) => state.device.deviceAction.restartProcess);
   const startMeasurementState = useSelector((state) => state.device.deviceAction.startMeasurement);
   const stopMeasurementState = useSelector((state) => state.device.deviceAction.stopMeasurement);
-  console.log('colors', colors);
-
+  const controlUnitListStore = useSelector((state) => state.controlUnit.controlUnitList.current);
+  const controlUnitChosenDisplay = controlUnitChosen ? controlUnitListStore.find((item) => item.id === controlUnitChosen.id) : null;
   const StartMeasurementInfoElement = () => {
-    return controlUnitChosen ? (
+    return controlUnitChosenDisplay ? (
       <Stack flexDirection="row" spacing={2} alignItems="center">
         <Box
           component="img"
@@ -46,14 +46,14 @@ const ConfirmControlProcessAction = ({
               <TimelineDot color="primary" />
               <TimelineConnector />
             </TimelineSeparator>
-            <TimelineContent sx={{ fontSize: '1.1rem' }}>SETPOINT {controlUnitChosen.setpoint} (cm)</TimelineContent>
+            <TimelineContent sx={{ fontSize: '1.1rem' }}>SETPOINT {controlUnitChosenDisplay.setpoint} (cm)</TimelineContent>
           </TimelineItem>
           <TimelineItem>
             <TimelineSeparator>
               <TimelineDot color="secondary" />
               <TimelineConnector />
             </TimelineSeparator>
-            <TimelineContent sx={{ fontSize: '1.1rem' }}>Kp: {controlUnitChosen.kp}</TimelineContent>
+            <TimelineContent sx={{ fontSize: '1.1rem' }}>Kp: {controlUnitChosenDisplay.kp}</TimelineContent>
           </TimelineItem>
           <TimelineItem>
             <TimelineSeparator>

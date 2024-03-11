@@ -22,7 +22,7 @@ import { createJWTAxios } from 'apis/createInstance';
 import { addNotificationItem } from 'store/reducers/notificationReducer';
 import { toast } from 'react-toastify';
 import { resetAllState } from 'store/reducers/deviceReducer';
-
+import { startMeasurementSuccess, startMeasurementFailed } from 'store/reducers/deviceReducer';
 // ==============================|| DASHBOARD - DEFAULT ||============================== //
 var stompClientRef = {
   current: null
@@ -113,6 +113,15 @@ const DashboardDefault = () => {
           if (receivedMessage.content === 'FINISH_RESET') {
             dispatch(restartProcessSuccess());
             toast.success('Restart control process success!');
+          }
+          break;
+        case 'START_MEASUREMENT':
+          if (receivedMessage.content) {
+            dispatch(startMeasurementSuccess());
+            toast.success('Start the control process successfully!');
+          } else {
+            dispatch(startMeasurementFailed());
+            toast.error('Start process failed! Setpoint must be greater than current water level!');
           }
           break;
         default:

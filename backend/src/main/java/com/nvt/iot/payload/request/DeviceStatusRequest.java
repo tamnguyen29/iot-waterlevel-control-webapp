@@ -16,9 +16,10 @@ import javax.validation.constraints.Pattern;
 public class DeviceStatusRequest {
     @NotNull(message = "Status is required!")
     @NotEmpty(message = "Status is not empty!")
-    @Pattern(regexp = "^(AVAILABLE|BUSY|UNAVAILABLE)$", message = "Status should be 'AVAILABLE', 'BUSY', 'UNAVAILABLE'")
+    @Pattern(regexp = "^(AVAILABLE|BUSY|UNAVAILABLE|CAN_NOT_START|CAN_START)$", message = "Status should be 'AVAILABLE', 'BUSY', 'UNAVAILABLE'")
     private String status;
     @NotNull(message = "Device id is required!")
     @NotEmpty(message = "Device id is not empty!")
     private String deviceId;
+    private String userId;
 }

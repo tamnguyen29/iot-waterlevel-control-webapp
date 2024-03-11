@@ -137,6 +137,19 @@ public class WaterTankConnectionServiceImpl implements WaterTankConnectionServic
                 deviceDocument.setCurrentUsingUser(null);
                 connectedDeviceRepository.save(deviceDocument);
                 websocketHandleEventService.sendListDeviceToAllUser();
+            } else if (deviceStatusRequest.getStatus().equals("CAN_NOT_START") ||
+                deviceStatusRequest.getStatus().equals("CAN_START")) {
+                boolean isCanStart = deviceStatusRequest.getStatus().equals("CAN_START");
+                var startMeasurementMessage = Message.builder()
+                    .sender(deviceStatusRequest.getDeviceId())
+                    .action(Action.START_MEASUREMENT)
+                    .content(isCanStart)
+                    .time(new Date(System.currentTimeMillis()))
+                    .build();
+                websocketHandleEventService.sendMessageToSpecificUser(
+                    deviceStatusRequest.getUserId(),
+                    startMeasurementMessage
+                );
             }
         });
     }

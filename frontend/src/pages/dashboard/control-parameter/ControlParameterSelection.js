@@ -2,13 +2,9 @@ import { useSelector } from 'react-redux';
 import PropTypes from 'prop-types';
 import { Stack, FormControl, InputLabel, Select, MenuItem, FormHelperText, Typography } from '@mui/material';
 
-const ControlParameterSelection = ({ controlUnit, handleControlUnitChange }) => {
+const ControlParameterSelection = ({ controlUnit, setControlUnit }) => {
   const controlUnitListStore = useSelector((state) => state.controlUnit.controlUnitList.current);
-
-  const handleSelectionChange = (id) => {
-    const controlUnitFind = controlUnitListStore.find((item) => item.id === id);
-    handleControlUnitChange(controlUnitFind);
-  };
+  console.log('renderrrrrrrrrrrrrrrrrr');
   const SelectControlParameter = () => {
     return (
       <FormControl required sx={{ width: '100%' }}>
@@ -19,7 +15,7 @@ const ControlParameterSelection = ({ controlUnit, handleControlUnitChange }) => 
           name="controlUnit"
           value={controlUnit && controlUnitListStore.find((item) => item.id === controlUnit.id) ? controlUnit.id : ''}
           label="Control parameter *"
-          onChange={(e) => handleSelectionChange(e.target.value)}
+          onChange={(e) => setControlUnit(controlUnitListStore.find((item) => item.id === e.target.value))}
         >
           {controlUnitListStore.map((controlUnitItem) => (
             <MenuItem key={controlUnitItem.id} value={controlUnitItem.id}>
@@ -81,6 +77,7 @@ const ControlParameterSelection = ({ controlUnit, handleControlUnitChange }) => 
 };
 ControlParameterSelection.propTypes = {
   controlUnit: PropTypes.any,
-  handleControlUnitChange: PropTypes.func
+  setControlUnit: PropTypes.func,
+  controlUnitListStore: PropTypes.any
 };
 export default ControlParameterSelection;

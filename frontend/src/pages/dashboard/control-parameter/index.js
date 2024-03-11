@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { Box, Stack, Button, CircularProgress, Divider } from '@mui/material';
+import { Box, Stack, Button, Divider } from '@mui/material';
 import { useState, useEffect, Fragment } from 'react';
 import { toast } from 'react-toastify';
 import services from 'apis/index';
@@ -98,7 +98,7 @@ const ControlParameter = () => {
       </Fragment>
       <Stack spacing={2} direction="column">
         <ControlParameterAction controlUnit={controlUnit} handleControlUnitChange={handleControlUnitChange} />
-        <ControlParameterSelection controlUnit={controlUnit} handleControlUnitChange={handleControlUnitChange} />
+        <ControlParameterSelection controlUnit={controlUnit} setControlUnit={setControlUnit} />
         <RadialBarWaterLevelChart />
         <Divider />
         <Noise isNoiseChecked={isNoiseChecked} setIsNoiseChecked={setIsNoiseChecked} handleSendNoise={handleSendNoise} />

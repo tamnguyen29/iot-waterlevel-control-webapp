@@ -117,4 +117,9 @@ public class WebsocketHandleEventServiceImpl implements WebsocketHandleEventServ
             );
         });
     }
+
+    @Override
+    public void sendMessageToSpecificUser(String userId, Message message) {
+        simpMessagingTemplate.convertAndSendToUser(userId, USER_PRIVATE_ROOM, message);
+    }
 }

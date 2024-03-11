@@ -3,7 +3,6 @@ import { toast } from 'react-toastify';
 import {
   startMeasurementBegin,
   startMeasurementFailed,
-  startMeasurementSuccess,
   stopMeasurementBegin,
   stopMeasurementSuccess,
   stopMeasurementFailed,
@@ -20,8 +19,6 @@ export const startMeasurement = async (jwtAxios, dispatch, deviceId, userId, con
         userId: userId
       }
     });
-    dispatch(startMeasurementSuccess());
-    toast.success('The control process has been started!');
   } catch (error) {
     dispatch(startMeasurementFailed());
     if (error.code === 'ERR_NETWORK') {
